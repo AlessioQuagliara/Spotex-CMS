@@ -1,0 +1,2 @@
+# Questo file mantiene la directory ssl nel repository
+# ma ignora i certificati (vedi .gitignore)

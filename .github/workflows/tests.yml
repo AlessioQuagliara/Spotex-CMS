@@ -1,0 +1,259 @@
+name: Testing Suite
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # Backend Unit Tests
+  backend-unit:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_cms
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+      
+      - name: Run unit tests
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_cms
+        run: |
+          cd backend
+          pytest tests/unit -v --cov=app --cov-report=xml
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: backend/coverage.xml
+          flags: backend-unit
+
+  # Backend Integration Tests
+  backend-integration:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_cms
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+      
+      - name: Run integration tests
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_cms
+          REDIS_URL: redis://localhost:6379
+        run: |
+          cd backend
+          pytest tests/integration -v --cov=app --cov-report=xml
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: backend/coverage.xml
+          flags: backend-integration
+
+  # Frontend Unit Tests
+  frontend-unit:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/admin/package-lock.json
+      
+      - name: Install dependencies
+        run: |
+          cd frontend/admin
+          npm ci
+      
+      - name: Run Jest tests
+        run: |
+          cd frontend/admin
+          npm test -- --coverage --watchAll=false
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: frontend/admin/coverage/coverage-final.json
+          flags: frontend-unit
+
+  # E2E Tests
+  e2e-tests:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: cms
+          POSTGRES_PASSWORD: cms123
+          POSTGRES_DB: cms
+        ports:
+          - 5432:5432
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Start backend
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          sleep 10
+      
+      - name: Install frontend dependencies
+        run: |
+          cd frontend/admin
+          npm ci
+      
+      - name: Start frontend
+        run: |
+          cd frontend/admin
+          npm run build
+          npm start &
+          sleep 10
+      
+      - name: Run Cypress tests
+        uses: cypress-io/github-action@v5
+        with:
+          working-directory: frontend/admin
+          wait-on: 'http://localhost:3001, http://localhost:8000/api/health'
+          wait-on-timeout: 120
+      
+      - name: Upload Cypress screenshots
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: cypress-screenshots
+          path: frontend/admin/cypress/screenshots
+      
+      - name: Upload Cypress videos
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: cypress-videos
+          path: frontend/admin/cypress/videos
+
+  # Code Quality
+  code-quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install Python linters
+        run: |
+          pip install black flake8 pylint mypy
+      
+      - name: Run Black
+        run: |
+          cd backend
+          black --check app/
+      
+      - name: Run Flake8
+        run: |
+          cd backend
+          flake8 app/ --max-line-length=100
+      
+      - name: Run MyPy
+        run: |
+          cd backend
+          mypy app/ --ignore-missing-imports
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+      
+      - name: Install frontend dependencies
+        run: |
+          cd frontend/admin
+          npm ci
+      
+      - name: Run ESLint
+        run: |
+          cd frontend/admin
+          npx eslint . --ext .js,.jsx,.ts,.tsx
+      
+      - name: Run TypeScript check
+        run: |
+          cd frontend/admin
+          npx tsc --noEmit

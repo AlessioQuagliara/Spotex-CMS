@@ -1,0 +1,127 @@
+# ========================================
+# SPOTEX CMS - Configurazione Docker per Sviluppo Locale
+# ========================================
+# Usa: docker-compose -f docker-compose.dev.yml up
+
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: cms_postgres_dev
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: spotex_cms_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - cms_network_dev
+
+  redis:
+    image: redis:7-alpine
+    container_name: cms_redis_dev
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_dev:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - cms_network_dev
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: builder  # Use builder stage for development
+    container_name: cms_backend_dev
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/spotex_cms_db
+      REDIS_URL: redis://redis:6379/0
+      DEBUG: "true"
+      UPLOAD_DIR: /app/uploads
+      MAX_UPLOAD_SIZE: "10485760"
+      JWT_SECRET_KEY: dev-secret-key-not-for-production
+      JWT_ALGORITHM: HS256
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      ALLOWED_ORIGINS: http://localhost:3000,http://localhost:3001,http://localhost:80
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend/app:/app/app:rw  # Live code reload
+      - ./backend/uploads:/app/uploads
+    networks:
+      - cms_network_dev
+
+  # Sviluppo frontend-admin in modalità dev (hot reload)
+  frontend-admin-dev:
+    build:
+      context: ./frontend/admin
+      dockerfile: Dockerfile
+      target: builder  # Use dev mode
+    container_name: cms_frontend_admin_dev
+    command: npm run dev
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+      NEXT_PUBLIC_APP_NAME: Spotex CMS Admin (Dev)
+      NODE_ENV: development
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend/admin:/app:rw
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - cms_network_dev
+
+  # Sviluppo frontend-render in modalità dev (hot reload)
+  frontend-render-dev:
+    build:
+      context: ./frontend/render
+      dockerfile: Dockerfile
+      target: builder
+    container_name: cms_frontend_render_dev
+    command: npm run dev
+    ports:
+      - "3001:3001"
+    environment:
+      NEXT_PUBLIC_RENDER_API_URL: http://localhost:8000/api/v1
+      NEXT_PUBLIC_SITE_NAME: Spotex Website (Dev)
+      NODE_ENV: development
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend/render:/app:rw
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - cms_network_dev
+
+volumes:
+  postgres_data_dev:
+  redis_data_dev:
+
+networks:
+  cms_network_dev:
+    driver: bridge

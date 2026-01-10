@@ -1,0 +1,146 @@
+name: Performance Tests
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Run daily at 2am UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  # Load Testing
+  load-test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: cms
+          POSTGRES_PASSWORD: cms123
+          POSTGRES_DB: cms
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          pip install locust
+      
+      - name: Start backend server
+        run: |
+          cd backend
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          sleep 10
+      
+      - name: Create test data
+        run: |
+          python scripts/seed-data.py
+      
+      - name: Run Locust load test
+        run: |
+          cd scripts
+          locust -f load-test.py --headless --users 100 --spawn-rate 10 --run-time 5m --host http://localhost:8000 --html /tmp/locust-report.html
+      
+      - name: Upload load test results
+        uses: actions/upload-artifact@v3
+        with:
+          name: locust-report
+          path: /tmp/locust-report.html
+
+  # Lighthouse Performance
+  lighthouse:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies
+        run: |
+          npm install -g lighthouse chrome-launcher
+          cd frontend/admin
+          npm ci
+      
+      - name: Build frontend
+        run: |
+          cd frontend/admin
+          npm run build
+      
+      - name: Start frontend server
+        run: |
+          cd frontend/admin
+          npm start &
+          sleep 10
+      
+      - name: Run Lighthouse
+        run: |
+          node scripts/lighthouse.js
+      
+      - name: Upload Lighthouse reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: lighthouse-reports
+          path: lighthouse-reports/
+
+  # Database Performance
+  db-performance:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: cms
+          POSTGRES_PASSWORD: cms123
+          POSTGRES_DB: cms
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install psycopg2-binary
+      
+      - name: Run database performance tests
+        env:
+          DATABASE_URL: postgresql://cms:cms123@localhost:5432/cms
+        run: |
+          python scripts/db-performance.py > /tmp/db-performance.txt
+      
+      - name: Upload DB performance report
+        uses: actions/upload-artifact@v3
+        with:
+          name: db-performance-report
+          path: /tmp/db-performance.txt

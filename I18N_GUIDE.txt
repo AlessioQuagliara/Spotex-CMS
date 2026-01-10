@@ -1,0 +1,142 @@
+# Translation Utility Hook
+This hook provides utilities for translating content in the admin interface.
+
+```typescript
+import { useTranslation } from '@/hooks/use-translation';
+
+const { t, currentLanguage, availableLanguages, changeLanguage } = useTranslation();
+
+// Use in component
+<h1>{t('common.welcome')}</h1>
+```
+
+## Features
+- ✅ 11 languages supported (EN, IT, ES, FR, DE, PT, AR, HE, ZH, JA, RU)
+- ✅ RTL support for Arabic and Hebrew
+- ✅ Automatic direction switching (LTR/RTL)
+- ✅ Currency conversion with 10 currencies
+- ✅ Real-time currency rates from external API
+- ✅ Translation management interface
+- ✅ Export/Import translations
+- ✅ Namespace support (common, auth, admin, posts, errors)
+
+## Usage Examples
+
+### Basic Translation
+```typescript
+const { t } = useTranslation();
+return <Button>{t('common.save')}</Button>;
+```
+
+### Currency Formatting
+```typescript
+const { format } = useCurrency();
+return <div>{format(99.99, 'USD')}</div>; // $99.99
+```
+
+### Currency Conversion
+```typescript
+const { convert } = useCurrency();
+const converted = await convert(100, 'USD', 'EUR'); // ~92 EUR
+```
+
+### RTL Detection
+```typescript
+const { isRTL, direction } = useRTL();
+return <div dir={direction}>Content</div>;
+```
+
+## API Endpoints
+
+### Languages
+- `GET /api/i18n/languages` - List all languages
+- `POST /api/i18n/languages` - Create language (admin)
+- `PUT /api/i18n/languages/{code}` - Update language (admin)
+- `DELETE /api/i18n/languages/{code}` - Delete language (admin)
+
+### Translations
+- `GET /api/i18n/posts/{id}/translations` - Get post translations
+- `POST /api/i18n/posts/{id}/translations` - Create translation
+- `PUT /api/i18n/posts/{id}/translations/{lang}` - Update translation
+- `GET /api/i18n/translations` - Get UI translations
+- `POST /api/i18n/translations/import` - Bulk import
+- `GET /api/i18n/translations/export` - Export as JSON
+
+### Currency
+- `GET /api/i18n/currency/rates` - Get exchange rates
+- `POST /api/i18n/currency/rates` - Update rates (admin)
+- `POST /api/i18n/currency/convert` - Convert currency
+- `POST /api/i18n/currency/sync-rates` - Sync from external API
+
+## Database Tables
+
+### languages
+- code (PK, unique)
+- name, native_name
+- direction (LTR/RTL)
+- is_default, is_active
+- flag_emoji
+
+### post_translations
+- post_id, language_code (composite unique)
+- title, slug, content, excerpt
+- meta_title, meta_description
+
+### category_translations
+- category_id, language_code (composite unique)
+- name, slug, description
+
+### page_translations
+- page_id, language_code (composite unique)
+- title, slug, content
+- meta_title, meta_description
+
+### translations (UI strings)
+- key, language_code, namespace (composite unique)
+- value
+
+### currency_rates
+- from_currency, to_currency (composite unique)
+- rate, source
+- updated_at
+
+## RTL Support
+Tailwind CSS configured with logical properties for RTL:
+- `ps-4` → padding-inline-start
+- `pe-4` → padding-inline-end
+- `ms-4` → margin-inline-start
+- `me-4` → margin-inline-end
+- `start-0` → inset-inline-start
+- `end-0` → inset-inline-end
+
+## Migration & Setup
+
+1. Run migration:
+```bash
+cd backend
+alembic upgrade head
+```
+
+2. Initialize data:
+```bash
+python scripts/init_i18n.py
+```
+
+3. Install frontend dependencies:
+```bash
+cd frontend/admin
+npm install
+```
+
+4. Start development:
+```bash
+npm run dev
+```
+
+## Translation Management
+Access the translation manager at `/dashboard/translations` to:
+- Add/edit UI translations
+- Export translations to JSON
+- Import translations from JSON
+- Manage multiple namespaces
+- Support all languages
