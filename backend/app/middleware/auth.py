@@ -35,3 +35,8 @@ def require_role(required_role: str):
             )
         return user
     return role_checker
+
+
+def require_admin():
+    """Dependency shortcut to restrict access to admin users."""
+    return require_role("admin")

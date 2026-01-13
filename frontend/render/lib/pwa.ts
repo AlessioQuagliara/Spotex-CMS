@@ -83,11 +83,12 @@ export async function subscribeToPush(): Promise<PushSubscription | null> {
 
   try {
     const registration = await navigator.serviceWorker.ready;
+    const key = urlBase64ToUint8Array(
+      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ""
+    );
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(
-        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ""
-      ),
+      applicationServerKey: key.buffer as ArrayBuffer,
     });
 
     console.log("[PWA] Push subscription:", subscription);

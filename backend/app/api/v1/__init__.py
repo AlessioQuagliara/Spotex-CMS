@@ -2,7 +2,7 @@
 API v1 router
 """
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, users, posts, categories, pages, media, webhooks
+from app.api.v1.endpoints import auth, users, posts, categories, pages, media, webhooks, stats
 
 api_router = APIRouter()
 
@@ -14,6 +14,7 @@ api_router.include_router(categories.router, prefix="/categories", tags=["Catego
 api_router.include_router(pages.router, prefix="/pages", tags=["Pages"])
 api_router.include_router(media.router, prefix="/media", tags=["Media"])
 api_router.include_router(webhooks.router, prefix="/webhooks", tags=["Webhooks"])
+api_router.include_router(stats.router, prefix="/stats", tags=["Stats"])
 
 # E-commerce endpoints
 try:

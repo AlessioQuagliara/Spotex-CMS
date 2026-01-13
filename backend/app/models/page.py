@@ -2,6 +2,7 @@
 Page model for static pages
 """
 from sqlalchemy import Column, String, Text, Boolean, Integer
+from sqlalchemy.orm import relationship
 from app.models.base import BaseModel
 
 
@@ -22,6 +23,9 @@ class Page(BaseModel):
     seo_title = Column(String(500), nullable=True)
     seo_description = Column(Text, nullable=True)
     seo_keywords = Column(Text, nullable=True)
+    
+    # Relationships
+    translations = relationship("PageTranslation", back_populates="page", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Page {self.title}>"

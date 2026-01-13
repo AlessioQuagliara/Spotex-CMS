@@ -3,7 +3,7 @@
 # ========================================
 # Usa: docker-compose -f docker-compose.dev.yml up
 
-version: '3.8'
+
 
 services:
   postgres:
@@ -17,7 +17,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data_dev:/var/lib/postgresql/data
-      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -29,11 +29,12 @@ services:
   redis:
     image: redis:7-alpine
     container_name: cms_redis_dev
-    command: redis-server --appendonly yes
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
     ports:
       - "6379:6379"
     volumes:
       - redis_data_dev:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -60,7 +61,7 @@ services:
       JWT_SECRET_KEY: dev-secret-key-not-for-production
       JWT_ALGORITHM: HS256
       JWT_ACCESS_TOKEN_EXPIRE_MINUTES: 30
-      ALLOWED_ORIGINS: http://localhost:3000,http://localhost:3001,http://localhost:80
+      ALLOWED_ORIGINS: '["http://localhost:3000","http://localhost:3001","http://localhost:80"]'
     depends_on:
       postgres:
         condition: service_healthy
@@ -75,15 +76,16 @@ services:
   # Sviluppo frontend-admin in modalità dev (hot reload)
   frontend-admin-dev:
     build:
-      context: ./frontend/admin
-      dockerfile: Dockerfile
-      target: builder  # Use dev mode
+      context: ./frontend
+      dockerfile: admin/Dockerfile
+      target: development
     container_name: cms_frontend_admin_dev
     command: npm run dev
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      SERVER_API_URL: http://backend:8000
       NEXT_PUBLIC_APP_NAME: Spotex CMS Admin (Dev)
       NODE_ENV: development
     depends_on:
@@ -98,8 +100,8 @@ services:
   # Sviluppo frontend-render in modalità dev (hot reload)
   frontend-render-dev:
     build:
-      context: ./frontend/render
-      dockerfile: Dockerfile
+      context: ./frontend
+      dockerfile: render/Dockerfile
       target: builder
     container_name: cms_frontend_render_dev
     command: npm run dev
@@ -113,6 +115,7 @@ services:
       - backend
     volumes:
       - ./frontend/render:/app:rw
+      - ./frontend/shared:/app/../shared:ro
       - /app/node_modules
       - /app/.next
     networks:

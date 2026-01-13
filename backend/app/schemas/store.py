@@ -12,7 +12,7 @@ class StoreBase(BaseModel):
     domain: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     logo_url: Optional[HttpUrl] = None
-    primary_color: str = Field(default="#007bff", regex="^#[0-9A-Fa-f]{6}$")
+    primary_color: str = Field(default="#007bff", pattern="^#[0-9A-Fa-f]{6}$")
     is_active: bool = True
 
     class Config:
@@ -29,7 +29,7 @@ class StoreUpdate(BaseModel):
     domain: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
     logo_url: Optional[HttpUrl] = None
-    primary_color: Optional[str] = Field(None, regex="^#[0-9A-Fa-f]{6}$")
+    primary_color: Optional[str] = Field(None, pattern="^#[0-9A-Fa-f]{6}$")
     is_active: Optional[bool] = None
     settings: Optional[Dict[str, Any]] = None
 

@@ -242,13 +242,13 @@ class ProductSearchFilters(BaseModel):
     max_price: Optional[Decimal] = Field(None, ge=0)
     is_featured: Optional[bool] = None
     is_in_stock: Optional[bool] = None
-    sort_by: str = Field(default="created_at", regex="^(created_at|price|name|popularity)$")
-    sort_order: str = Field(default="desc", regex="^(asc|desc)$")
+    sort_by: str = Field(default="created_at", pattern="^(created_at|price|name|popularity)$")
+    sort_order: str = Field(default="desc", pattern="^(asc|desc)$")
 
 class InventoryAdjustment(BaseModel):
     """Inventory adjustment"""
     quantity_change: int
-    reason: str = Field(..., regex="^(purchase|sale|return|adjustment|damage)$")
+    reason: str = Field(..., pattern="^(purchase|sale|return|adjustment|damage)$")
     note: Optional[str] = None
 
     class Config:
@@ -282,4 +282,4 @@ class BulkPriceUpdate(BaseModel):
     """Bulk price update"""
     product_ids: List[int]
     price_adjustment: Decimal
-    adjustment_type: str = Field(..., regex="^(percent|amount)$")
+    adjustment_type: str = Field(..., pattern="^(percent|amount)$")

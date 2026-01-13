@@ -256,7 +256,7 @@ async def track_activity(
         category_id=activity.category_id,
         page_url=activity.page_url,
         referrer=activity.referrer,
-        metadata=activity.metadata
+        metadata=activity.meta_data
     )
     
     db.add(activity_log)

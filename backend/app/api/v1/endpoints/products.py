@@ -97,8 +97,8 @@ async def list_products(
     max_price: Optional[float] = Query(None, ge=0),
     is_featured: Optional[bool] = Query(None),
     is_in_stock: Optional[bool] = Query(None),
-    sort_by: str = Query("created_at", regex="^(created_at|price|name|popularity)$"),
-    sort_order: str = Query("desc", regex="^(asc|desc)$"),
+    sort_by: str = Query("created_at", pattern="^(created_at|price|name|popularity)$"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$"),
     db: AsyncSession = Depends(get_db)
 ):
     """List products with advanced filters"""

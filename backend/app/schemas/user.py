@@ -40,3 +40,18 @@ class UserResponse(UserBase, BaseSchema):
 
 class UserInDB(UserResponse):
     hashed_password: str
+
+# Auth schemas
+class Token(BaseModel):
+    access_token: str
+    refresh_token: Optional[str] = None
+    token_type: str = "bearer"
+    user: Optional['UserResponse'] = None  # Include user data in token response
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+class UserUpdatePassword(BaseModel):
+    current_password: str
+    new_password: str

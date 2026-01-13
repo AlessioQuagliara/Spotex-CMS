@@ -16,6 +16,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { LanguageSwitcher } from '@/components/language-switcher'
 import { CurrencySwitcher } from '@/components/currency-switcher'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 export function Header() {
   const router = useRouter()
@@ -52,6 +53,7 @@ export function Header() {
       </div>
       <LanguageSwitcher />
       <CurrencySwitcher />
+      <ThemeToggle />
       <Button variant="ghost" size="icon" className="h-8 w-8">
         <Bell className="h-4 w-4" />
         <span className="sr-only">Notifiche</span>

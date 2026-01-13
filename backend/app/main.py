@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from app.api import api_router
+from app.api.v1 import api_router  # Usa il router v1
 from app.database.database import Base, engine
 from app.utils.cache import get_redis, close_redis, get_cache_stats, cache_response
 

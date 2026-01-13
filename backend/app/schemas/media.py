@@ -24,5 +24,18 @@ class MediaBase(BaseModel):
 class MediaCreate(MediaBase):
     filename: str
 
+class MediaUpdate(BaseModel):
+    alt_text: Optional[str] = None
+    caption: Optional[str] = None
+
 class MediaResponse(MediaBase, BaseSchema):
     filename: str
+
+class MediaUploadResponse(BaseModel):
+    id: int
+    filename: str
+    file_path: str
+    url: str
+    file_size: int
+    mime_type: str
+    media_type: MediaType

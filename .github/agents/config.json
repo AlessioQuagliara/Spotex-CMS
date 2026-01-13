@@ -1,0 +1,183 @@
+{
+  "agent": {
+    "name": "Spotex CMS AI Agent",
+    "version": "1.0.0",
+    "description": "Automated AI agent for Spotex CMS development tasks",
+    "author": "Spotex Team"
+  },
+  "tasks": {
+    "daily_tasks": [
+      "code-quality-check",
+      "dependency-update-check",
+      "security-scan",
+      "performance-optimization"
+    ],
+    "feature_tasks": [
+      "component-creation",
+      "api-endpoint-creation",
+      "page-creation",
+      "test-writing"
+    ],
+    "review_tasks": [
+      "code-review",
+      "pr-analysis",
+      "merge-readiness-check"
+    ]
+  },
+  "instructions": {
+    "01-ui-theme-fix": {
+      "title": "UI Theme System",
+      "priority": "high",
+      "tags": ["ui", "frontend", "theme"],
+      "estimated_hours": 2,
+      "status": "completed"
+    },
+    "02-products-crud": {
+      "title": "E-Commerce Products CRUD",
+      "priority": "medium-high",
+      "tags": ["backend", "frontend", "ecommerce", "crud"],
+      "estimated_hours": 20,
+      "status": "not-started",
+      "dependencies": []
+    },
+    "03-storefront": {
+      "title": "Storefront e-Commerce",
+      "priority": "medium",
+      "tags": ["frontend", "ecommerce", "storefront"],
+      "estimated_hours": 24,
+      "status": "not-started",
+      "dependencies": ["02-products-crud"]
+    },
+    "04-settings": {
+      "title": "Admin Settings & Configuration",
+      "priority": "medium",
+      "tags": ["backend", "frontend", "settings", "admin"],
+      "estimated_hours": 14,
+      "status": "not-started",
+      "dependencies": []
+    }
+  },
+  "templates": {
+    "component": {
+      "path": "component.md",
+      "language": "typescript",
+      "type": "react-component"
+    },
+    "api-endpoint": {
+      "path": "api-endpoint.md",
+      "language": "python",
+      "type": "fastapi-endpoint"
+    },
+    "page": {
+      "path": "page.md",
+      "language": "typescript",
+      "type": "nextjs-page"
+    }
+  },
+  "workflows": {
+    "daily": {
+      "file": "ai-agent-daily.yml",
+      "schedule": "0 9 * * *",
+      "description": "Daily automated tasks"
+    },
+    "feature": {
+      "file": "ai-agent-feature.yml",
+      "trigger": "pull_request",
+      "description": "Feature implementation on PR"
+    },
+    "review": {
+      "file": "ai-agent-review.yml",
+      "trigger": "pull_request",
+      "description": "Code review on PR"
+    }
+  },
+  "tools": {
+    "linting": {
+      "frontend": "npm run lint",
+      "backend": "cd backend && pylint app"
+    },
+    "testing": {
+      "frontend": "npm run test",
+      "backend": "cd backend && pytest"
+    },
+    "formatting": {
+      "frontend": "npm run format",
+      "backend": "cd backend && black app"
+    }
+  },
+  "validation": {
+    "required_files": [
+      "backend/requirements.txt",
+      "frontend/admin/package.json",
+      "frontend/render/package.json",
+      ".github/workflows/ai-agent-*.yml",
+      ".github/agents/config.json"
+    ],
+    "checks": [
+      {
+        "name": "TypeScript compilation",
+        "command": "npx tsc --noEmit",
+        "critical": true
+      },
+      {
+        "name": "Linting",
+        "command": "npm run lint && cd backend && pylint app --exit-zero",
+        "critical": true
+      },
+      {
+        "name": "Tests",
+        "command": "npm run test -- --silent",
+        "critical": false
+      }
+    ]
+  },
+  "notifications": {
+    "slack": {
+      "enabled": true,
+      "channel": "#ai-agent-logs",
+      "on_events": ["success", "failure", "warning"]
+    },
+    "email": {
+      "enabled": false,
+      "recipients": ["team@spotex.com"],
+      "on_events": ["failure"]
+    }
+  },
+  "permissions": {
+    "can_create_branches": true,
+    "can_create_pr": true,
+    "can_commit": true,
+    "can_delete_branches": true,
+    "requires_approval": {
+      "merge": true,
+      "deploy": true
+    }
+  },
+  "cache": {
+    "enabled": true,
+    "ttl": 3600,
+    "paths": [
+      "node_modules",
+      "frontend/admin/.next",
+      "backend/.venv"
+    ]
+  },
+  "environment": {
+    "node_version": "20",
+    "python_version": "3.11",
+    "databases": ["postgres", "redis"],
+    "services": ["backend", "frontend-admin", "frontend-render"]
+  },
+  "quality_gates": {
+    "code_coverage": {
+      "minimum": 80,
+      "target": 90
+    },
+    "lint_errors": {
+      "maximum": 0
+    },
+    "test_pass_rate": {
+      "minimum": 95
+    }
+  }
+}

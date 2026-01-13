@@ -7,13 +7,6 @@
 import Script from 'next/script';
 import { useEffect } from 'react';
 
-declare global {
-  interface Window {
-    fbq: (...args: any[]) => void;
-    _fbq: any;
-  }
-}
-
 interface FacebookPixelProps {
   pixelId: string;
   enabled?: boolean;
@@ -63,11 +56,10 @@ export function useFacebookPixel(pixelId: string, enabled: boolean = true) {
     if (!enabled || !pixelId || typeof window === 'undefined') return;
 
     // Initialize if not already loaded
-    if (!window.fbq) {
+    if (!(window as any).fbq) {
       // Facebook Pixel Code
-      (function(f: any, b: any, e: any, v: any, n: any, t: any, s: any) {
-        if (f.fbq) return;
-        n = f.fbq = function() {
+      (function(f: any, b: any, e: any, v: any) {
+        const n: any = f.fbq = function() {
           n.callMethod
             ? n.callMethod.apply(n, arguments)
             : n.queue.push(arguments);
@@ -77,11 +69,13 @@ export function useFacebookPixel(pixelId: string, enabled: boolean = true) {
         n.loaded = !0;
         n.version = '2.0';
         n.queue = [];
-        t = b.createElement(e);
+        const t: any = b.createElement(e);
         t.async = !0;
         t.src = v;
-        s = b.getElementsByTagName(e)[0];
-        s.parentNode.insertBefore(t, s);
+        const s = b.getElementsByTagName(e)[0];
+        if (s && s.parentNode) {
+          s.parentNode.insertBefore(t, s);
+        }
       })(
         window,
         document,
@@ -89,8 +83,8 @@ export function useFacebookPixel(pixelId: string, enabled: boolean = true) {
         'https://connect.facebook.net/en_US/fbevents.js'
       );
 
-      window.fbq('init', pixelId);
-      window.fbq('track', 'PageView');
+      (window as any).fbq('init', pixelId);
+      (window as any).fbq('track', 'PageView');
     }
   }, [pixelId, enabled]);
 }

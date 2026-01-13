@@ -73,7 +73,7 @@ class CustomerActivity(Base):
     referrer: Mapped[Optional[str]] = Column(String(500))
     
     # Metadata
-    metadata: Mapped[Optional[str]] = Column(JSON)
+    meta_data: Mapped[Optional[str]] = Column(JSON)
     
     # Device/browser info
     user_agent: Mapped[Optional[str]] = Column(Text)

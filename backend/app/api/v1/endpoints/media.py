@@ -49,10 +49,10 @@ async def upload_file(
     
     # Validate extension
     file_ext = Path(file.filename).suffix.lower().lstrip(".")
-    if file_ext not in settings.ALLOWED_EXTENSIONS:
+    if file_ext not in settings.allowed_extensions_list:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"File type not allowed. Allowed: {', '.join(settings.ALLOWED_EXTENSIONS)}"
+            detail=f"File type not allowed. Allowed: {', '.join(settings.allowed_extensions_list)}"
         )
     
     # Generate unique filename

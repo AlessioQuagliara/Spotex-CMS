@@ -34,9 +34,9 @@ class StoreGeneralSettings(BaseModel):
     company_name: Optional[str] = None
     
     # Settings
-    currency: str = Field(default="EUR", regex="^[A-Z]{3}$")
+    currency: str = Field(default="EUR", pattern="^[A-Z]{3}$")
     timezone: str = Field(default="Europe/Rome")
-    language: str = Field(default="it", regex="^[a-z]{2}$")
+    language: str = Field(default="it", pattern="^[a-z]{2}$")
     
     # Features
     enable_registration: bool = True
@@ -71,7 +71,7 @@ class StoreGeneralSettingsResponse(StoreGeneralSettings):
 class PaymentMethodCreate(BaseModel):
     """Create payment method"""
     name: str = Field(..., min_length=1, max_length=100)
-    code: str = Field(..., min_length=1, max_length=50, regex="^[a-z0-9_]+$")
+    code: str = Field(..., min_length=1, max_length=50, pattern="^[a-z0-9_]+$")
     description: Optional[str] = None
     enabled: bool = True
     
@@ -87,7 +87,7 @@ class PaymentMethodCreate(BaseModel):
     paypal_enabled: bool = False
     paypal_client_id: Optional[str] = None
     paypal_secret: Optional[str] = None
-    paypal_mode: str = Field(default="sandbox", regex="^(sandbox|live)$")
+    paypal_mode: str = Field(default="sandbox", pattern="^(sandbox|live)$")
     
     # Bank transfer
     bank_transfer_enabled: bool = False
@@ -186,7 +186,7 @@ class ShippingRateCreate(BaseModel):
     description: Optional[str] = None
     
     # Calculation method
-    calculation_method: str = Field(..., regex="^(flat_rate|weight_based|price_based|free)$")
+    calculation_method: str = Field(..., pattern="^(flat_rate|weight_based|price_based|free)$")
     
     # Flat rate
     flat_rate: Decimal = Field(default=Decimal('0'))
@@ -338,10 +338,10 @@ class TaxRateResponse(BaseModel):
 class TaxSettings(BaseModel):
     """General tax settings"""
     prices_include_tax: bool = False
-    calculate_tax_based_on: str = Field(default="shipping", regex="^(shipping|billing|store)$")
+    calculate_tax_based_on: str = Field(default="shipping", pattern="^(shipping|billing|store)$")
     shipping_tax_class: str = Field(default="standard")
-    display_prices_in_shop: str = Field(default="excluding", regex="^(including|excluding)$")
-    display_prices_during_cart_checkout: str = Field(default="excluding", regex="^(including|excluding)$")
+    display_prices_in_shop: str = Field(default="excluding", pattern="^(including|excluding)$")
+    display_prices_during_cart_checkout: str = Field(default="excluding", pattern="^(including|excluding)$")
 
     class Config:
         from_attributes = True
@@ -353,16 +353,16 @@ class TaxSettings(BaseModel):
 
 class ThemeColors(BaseModel):
     """Theme color scheme"""
-    primary: str = Field(default="#3B82F6", regex="^#[0-9A-Fa-f]{6}$")
-    secondary: str = Field(default="#10B981", regex="^#[0-9A-Fa-f]{6}$")
-    accent: str = Field(default="#F59E0B", regex="^#[0-9A-Fa-f]{6}$")
-    success: str = Field(default="#10B981", regex="^#[0-9A-Fa-f]{6}$")
-    warning: str = Field(default="#F59E0B", regex="^#[0-9A-Fa-f]{6}$")
-    error: str = Field(default="#EF4444", regex="^#[0-9A-Fa-f]{6}$")
-    background: str = Field(default="#FFFFFF", regex="^#[0-9A-Fa-f]{6}$")
-    surface: str = Field(default="#F9FAFB", regex="^#[0-9A-Fa-f]{6}$")
-    text_primary: str = Field(default="#111827", regex="^#[0-9A-Fa-f]{6}$")
-    text_secondary: str = Field(default="#6B7280", regex="^#[0-9A-Fa-f]{6}$")
+    primary: str = Field(default="#3B82F6", pattern="^#[0-9A-Fa-f]{6}$")
+    secondary: str = Field(default="#10B981", pattern="^#[0-9A-Fa-f]{6}$")
+    accent: str = Field(default="#F59E0B", pattern="^#[0-9A-Fa-f]{6}$")
+    success: str = Field(default="#10B981", pattern="^#[0-9A-Fa-f]{6}$")
+    warning: str = Field(default="#F59E0B", pattern="^#[0-9A-Fa-f]{6}$")
+    error: str = Field(default="#EF4444", pattern="^#[0-9A-Fa-f]{6}$")
+    background: str = Field(default="#FFFFFF", pattern="^#[0-9A-Fa-f]{6}$")
+    surface: str = Field(default="#F9FAFB", pattern="^#[0-9A-Fa-f]{6}$")
+    text_primary: str = Field(default="#111827", pattern="^#[0-9A-Fa-f]{6}$")
+    text_secondary: str = Field(default="#6B7280", pattern="^#[0-9A-Fa-f]{6}$")
 
     class Config:
         from_attributes = True

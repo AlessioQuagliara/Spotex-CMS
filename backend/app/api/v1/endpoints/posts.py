@@ -69,6 +69,40 @@ async def list_posts(
     )
 
 
+# Dashboard endpoint - MUST be before /{post_id} to avoid route conflict
+@router.get("/recent", response_model=List[PostListResponse])
+async def get_recent_posts(
+    limit: int = Query(default=5, le=20),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get recent posts for dashboard"""
+    result = await db.execute(
+        select(Post)
+        .options(joinedload(Post.author))
+        .order_by(Post.created_at.desc())
+        .limit(limit)
+    )
+    posts = result.scalars().all()
+    
+    return [
+        PostListResponse(
+            id=post.id,
+            title=post.title,
+            slug=post.slug,
+            excerpt=post.excerpt,
+            featured_image=post.featured_image,
+            is_published=post.is_published,
+            published_at=post.published_at,
+            author_id=post.author_id,
+            category_id=post.category_id,
+            views=post.views if hasattr(post, 'views') else 0,
+            created_at=post.created_at,
+            updated_at=post.updated_at
+        )
+        for post in posts
+    ]
+
+
 @router.get("/{post_id}", response_model=PostResponse)
 async def get_post(
     post_id: int,
@@ -189,3 +223,5 @@ async def delete_post(
     await db.commit()
     
     return {"message": "Post deleted successfully"}
+
+

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.core.security import (
@@ -32,13 +33,13 @@ from app.schemas.base import MessageResponse
 router = APIRouter()
 
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
 async def register(
     user_data: UserCreate,
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Register a new user
+    Register a new user and return tokens
     """
     # Check if user exists
     result = await db.execute(
@@ -68,7 +69,33 @@ async def register(
     await db.commit()
     await db.refresh(db_user)
     
-    return db_user
+    # Create tokens for immediate login
+    access_token = create_access_token(data={"sub": str(db_user.id), "username": db_user.username})
+    refresh_token = create_refresh_token(data={"sub": str(db_user.id)})
+    
+    # Prepare user response
+    from app.schemas.user import UserResponse
+    user_data = UserResponse(
+        id=db_user.id,
+        email=db_user.email,
+        username=db_user.username,
+        full_name=db_user.full_name,
+        role=db_user.role,
+        is_active=db_user.is_active,
+        profile_picture=db_user.profile_picture,
+        created_at=db_user.created_at,
+        updated_at=db_user.updated_at
+    )
+    
+    print(f"DEBUG: access_token={access_token[:50] if access_token else None}")
+    print(f"DEBUG: refresh_token={refresh_token[:50] if refresh_token else None}")
+    
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "user": user_data
+    }
 
 
 @router.post("/login", response_model=Token)
@@ -78,10 +105,14 @@ async def login(
 ):
     """
     OAuth2 compatible token login
+    Accepts username or email as username field
     """
-    # Find user by username
+    # Try to find user by username or email
     result = await db.execute(
-        select(User).where(User.username == form_data.username)
+        select(User).where(
+            (User.username == form_data.username) | 
+            (User.email == form_data.username)
+        )
     )
     user = result.scalar_one_or_none()
     
@@ -103,10 +134,25 @@ async def login(
     access_token = create_access_token(data={"sub": str(user.id), "username": user.username})
     refresh_token = create_refresh_token(data={"sub": str(user.id)})
     
+    # Prepare user response
+    from app.schemas.user import UserResponse
+    user_data = UserResponse(
+        id=user.id,
+        email=user.email,
+        username=user.username,
+        full_name=user.full_name,
+        role=user.role,
+        is_active=user.is_active,
+        profile_picture=user.profile_picture,
+        created_at=user.created_at,
+        updated_at=user.updated_at
+    )
+    
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
-        "token_type": "bearer"
+        "token_type": "bearer",
+        "user": user_data
     }
 
 
@@ -117,10 +163,14 @@ async def login_json(
 ):
     """
     JSON body login (alternative to form data)
+    Accepts username or email as username field
     """
-    # Find user by username
+    # Try to find user by username or email
     result = await db.execute(
-        select(User).where(User.username == login_data.username)
+        select(User).where(
+            (User.username == login_data.username) | 
+            (User.email == login_data.username)
+        )
     )
     user = result.scalar_one_or_none()
     
@@ -141,22 +191,40 @@ async def login_json(
     access_token = create_access_token(data={"sub": str(user.id), "username": user.username})
     refresh_token = create_refresh_token(data={"sub": str(user.id)})
     
+    # Prepare user response
+    from app.schemas.user import UserResponse
+    user_data = UserResponse(
+        id=user.id,
+        email=user.email,
+        username=user.username,
+        full_name=user.full_name,
+        role=user.role,
+        is_active=user.is_active,
+        profile_picture=user.profile_picture,
+        created_at=user.created_at,
+        updated_at=user.updated_at
+    )
+    
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
-        "token_type": "bearer"
+        "token_type": "bearer",
+        "user": user_data
     }
 
 
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
-    refresh_token: str,
+    request: RefreshTokenRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """
     Refresh access token using refresh token
     """
-    payload = decode_token(refresh_token)
+    payload = decode_token(request.refresh_token)
     
     if not payload or payload.get("type") != "refresh":
         raise HTTPException(

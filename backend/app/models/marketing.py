@@ -48,7 +48,7 @@ class MarketingCampaign(Base):
     coupon_id: Mapped[Optional[int]] = Column(Integer, ForeignKey("coupons.id"))
     
     # Metadata
-    metadata: Mapped[Optional[str]] = Column(JSON)
+    meta_data: Mapped[Optional[str]] = Column(JSON)
     
     created_at: Mapped[datetime] = Column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

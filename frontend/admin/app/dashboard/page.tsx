@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { useRouter } from 'next/navigation'
 import { 
   BarChart3, 
   FileText, 
@@ -11,7 +12,8 @@ import {
   Image,
   ArrowUpRight,
   Eye,
-  Calendar
+  Calendar,
+  Palette
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 
@@ -33,6 +35,8 @@ interface RecentPost {
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
+  
   const { data: stats } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: async () => {
@@ -167,6 +171,14 @@ export default function DashboardPage() {
             <Button className="w-full justify-start" variant="outline">
               <BarChart3 className="mr-2 h-4 w-4" />
               Visualizza Statistiche
+            </Button>
+            <Button 
+              className="w-full justify-start" 
+              variant="outline"
+              onClick={() => router.push('/theme-test')}
+            >
+              <Palette className="mr-2 h-4 w-4" />
+              Test Sistema Temi
             </Button>
           </CardContent>
         </Card>

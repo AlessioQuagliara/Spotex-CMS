@@ -18,8 +18,8 @@ class OrderFilters(BaseModel):
     min_amount: Optional[Decimal] = None
     max_amount: Optional[Decimal] = None
     has_tracking: Optional[bool] = None
-    sort_by: str = Field(default="created_at", regex="^(created_at|total_amount|status|customer_name)$")
-    sort_order: str = Field(default="desc", regex="^(asc|desc)$")
+    sort_by: str = Field(default="created_at", pattern="^(created_at|total_amount|status|customer_name)$")
+    sort_order: str = Field(default="desc", pattern="^(asc|desc)$")
 
     class Config:
         from_attributes = True
@@ -264,7 +264,7 @@ class OrderNoteCreate(BaseModel):
 
 class OrderEmailResend(BaseModel):
     """Resend order email"""
-    email_type: str = Field(..., regex="^(confirmation|payment|shipping|delivery|cancellation|refund)$")
+    email_type: str = Field(..., pattern="^(confirmation|payment|shipping|delivery|cancellation|refund)$")
 
     class Config:
         from_attributes = True
@@ -273,7 +273,7 @@ class OrderEmailResend(BaseModel):
 class OrderBulkExport(BaseModel):
     """Bulk export orders"""
     order_ids: List[int]
-    format: str = Field(default="csv", regex="^(csv|pdf|json)$")
+    format: str = Field(default="csv", pattern="^(csv|pdf|json)$")
 
     class Config:
         from_attributes = True

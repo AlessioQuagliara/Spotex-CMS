@@ -27,7 +27,7 @@ class StripePaymentService:
             intent = stripe.PaymentIntent.create(
                 amount=amount_cents,
                 currency=currency.lower(),
-                metadata=metadata or {},
+                metadata=meta_data or {},
                 automatic_payment_methods={
                     'enabled': True,
                 }

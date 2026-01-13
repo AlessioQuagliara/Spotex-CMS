@@ -16,7 +16,7 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<ThemeConfig>(defaultTheme);
+  const [theme, setTheme] = useState<ThemeConfig>(defaultTheme as ThemeConfig);
   const [currentTemplate, setCurrentTemplate] = useState<PageTemplate | null>(null);
   const [isEditing, setIsEditing] = useState(false);
 

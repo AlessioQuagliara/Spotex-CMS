@@ -44,7 +44,7 @@ class SalesReportRequest(BaseModel):
     """Sales report request"""
     start_date: date
     end_date: date
-    group_by: str = Field(default="day", regex="^(hour|day|week|month)$")
+    group_by: str = Field(default="day", pattern="^(hour|day|week|month)$")
     metrics: Optional[List[str]] = None  # revenue, orders, customers, etc.
 
     class Config:

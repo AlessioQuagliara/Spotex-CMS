@@ -36,13 +36,14 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=7, alias="JWT_REFRESH_TOKEN_EXPIRE_DAYS")
     
     # CORS
-    ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:3001"]
+    ALLOWED_ORIGINS: str = Field(default="http://localhost:3000,http://localhost:3001")
     
-    @validator("ALLOWED_ORIGINS", pre=True)
-    def parse_cors_origins(cls, v):
-        if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",")]
-        return v
+    @property
+    def allowed_origins_list(self) -> List[str]:
+        """Parse ALLOWED_ORIGINS string to list"""
+        if isinstance(self.ALLOWED_ORIGINS, str):
+            return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
+        return self.ALLOWED_ORIGINS if isinstance(self.ALLOWED_ORIGINS, list) else []
     
     # Database
     DATABASE_URL: str
@@ -58,13 +59,14 @@ class Settings(BaseSettings):
     # File Upload
     UPLOAD_DIR: str = "./uploads"
     MAX_UPLOAD_SIZE: int = 10485760  # 10MB
-    ALLOWED_EXTENSIONS: List[str] = ["jpg", "jpeg", "png", "gif", "webp", "pdf"]
+    ALLOWED_EXTENSIONS: str = Field(default="jpg,jpeg,png,gif,webp,pdf")
     
-    @validator("ALLOWED_EXTENSIONS", pre=True)
-    def parse_extensions(cls, v):
-        if isinstance(v, str):
-            return [ext.strip() for ext in v.split(",")]
-        return v
+    @property
+    def allowed_extensions_list(self) -> List[str]:
+        """Parse ALLOWED_EXTENSIONS string to list"""
+        if isinstance(self.ALLOWED_EXTENSIONS, str):
+            return [ext.strip().lower() for ext in self.ALLOWED_EXTENSIONS.split(",") if ext.strip()]
+        return self.ALLOWED_EXTENSIONS if isinstance(self.ALLOWED_EXTENSIONS, list) else []
     
     # Rate Limiting
     RATE_LIMIT_ENABLED: bool = True

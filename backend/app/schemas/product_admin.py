@@ -10,7 +10,7 @@ from decimal import Decimal
 class BulkPriceUpdateRequest(BaseModel):
     """Bulk price update"""
     product_ids: List[int] = Field(..., min_items=1)
-    price_adjustment_type: str = Field(..., regex="^(percentage|fixed|set)$")
+    price_adjustment_type: str = Field(..., pattern="^(percentage|fixed|set)$")
     adjustment_value: Decimal
     apply_to_compare_price: bool = False
 
@@ -40,7 +40,7 @@ class BulkTagUpdateRequest(BaseModel):
     """Bulk tag update"""
     product_ids: List[int] = Field(..., min_items=1)
     tags: List[str]
-    action: str = Field(..., regex="^(add|remove|replace)$")
+    action: str = Field(..., pattern="^(add|remove|replace)$")
 
     class Config:
         from_attributes = True
@@ -146,7 +146,7 @@ class BulkImageUpdateRequest(BaseModel):
     """Bulk image operations"""
     product_id: int
     images: List[Dict[str, Any]]  # [{url, alt_text, position}]
-    action: str = Field(..., regex="^(add|remove|replace|reorder)$")
+    action: str = Field(..., pattern="^(add|remove|replace|reorder)$")
 
     class Config:
         from_attributes = True
@@ -181,14 +181,14 @@ class AdvancedProductFilter(BaseModel):
     tags: Optional[List[str]] = None
     price_min: Optional[Decimal] = None
     price_max: Optional[Decimal] = None
-    stock_status: Optional[str] = Field(None, regex="^(in_stock|low_stock|out_of_stock)$")
+    stock_status: Optional[str] = Field(None, pattern="^(in_stock|low_stock|out_of_stock)$")
     is_active: Optional[bool] = None
     is_featured: Optional[bool] = None
     created_after: Optional[datetime] = None
     created_before: Optional[datetime] = None
     search: Optional[str] = None
-    sort_by: str = Field(default="created_at", regex="^(name|price|stock|created_at|updated_at)$")
-    sort_order: str = Field(default="desc", regex="^(asc|desc)$")
+    sort_by: str = Field(default="created_at", pattern="^(name|price|stock|created_at|updated_at)$")
+    sort_order: str = Field(default="desc", pattern="^(asc|desc)$")
 
     class Config:
         from_attributes = True

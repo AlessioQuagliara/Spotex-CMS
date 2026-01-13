@@ -1,5 +1,5 @@
 from pydantic import BaseModel, field_validator
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 from .base import BaseSchema
 
@@ -37,3 +37,17 @@ class PostResponse(PostBase, BaseSchema):
     author_id: int
     category_id: Optional[int] = None
     views: int = 0
+
+class PostListResponse(BaseModel):
+    id: int
+    title: str
+    slug: str
+    excerpt: Optional[str] = None
+    featured_image: Optional[str] = None
+    is_published: bool
+    published_at: Optional[datetime] = None
+    author_id: int
+    category_id: Optional[int] = None
+    views: int = 0
+    created_at: datetime
+    updated_at: datetime

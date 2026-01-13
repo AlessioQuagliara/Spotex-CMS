@@ -21,6 +21,7 @@ class Category(BaseModel):
     
     # Relationship with posts
     posts = relationship("Post", back_populates="category")
+    translations = relationship("CategoryTranslation", back_populates="category", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Category {self.name}>"

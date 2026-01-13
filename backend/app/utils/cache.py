@@ -13,7 +13,19 @@ redis_client: Optional[aioredis.Redis] = None
 async def get_redis() -> aioredis.Redis:
     """Get Redis connection"""
     global redis_client
+    # Lazily create the client
     if redis_client is None:
+        redis_client = await aioredis.from_url(
+            REDIS_URL,
+            encoding="utf-8",
+            decode_responses=True
+        )
+
+    # If the connection is stale/closed, recreate it once
+    try:
+        await redis_client.ping()
+    except Exception:
+        await close_redis()
         redis_client = await aioredis.from_url(
             REDIS_URL,
             encoding="utf-8",
@@ -26,6 +38,7 @@ async def close_redis():
     global redis_client
     if redis_client:
         await redis_client.close()
+        redis_client = None
 
 def generate_cache_key(prefix: str, *args, **kwargs) -> str:
     """Generate a cache key from function arguments"""
@@ -162,8 +175,8 @@ async def invalidate_cache_pattern(pattern: str):
         print(f"⚠️  Cache invalidation error: {e}")
         return 0
 
-async def get_cache_stats() -> dict:
-    """Get cache statistics"""
+async def get_cache_stats(retry: bool = True) -> dict:
+    """Get cache statistics. If the connection is closed, try once to reconnect."""
     redis = await get_redis()
     try:
         info = await redis.info('stats')
@@ -171,13 +184,15 @@ async def get_cache_stats() -> dict:
             "keyspace_hits": info.get('keyspace_hits', 0),
             "keyspace_misses": info.get('keyspace_misses', 0),
             "hit_rate": (
-                info.get('keyspace_hits', 0) / 
-                max(info.get('keyspace_hits', 0) + info.get('keyspace_misses', 0), 1)
-            ) * 100,
-            "connected": True
+                info.get('keyspace_hits', 0)
+                / max(info.get('keyspace_hits', 0) + info.get('keyspace_misses', 0), 1)
+            )
+            * 100,
+            "connected": True,
         }
     except Exception as e:
-        return {
-            "error": str(e),
-            "connected": False
-        }
+        # If the connection was closed or is stale, reset the client once and retry
+        if retry:
+            await close_redis()
+            return await get_cache_stats(retry=False)
+        return {"error": str(e), "connected": False}

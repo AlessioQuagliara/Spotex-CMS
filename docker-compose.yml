@@ -1,4 +1,4 @@
-version: '3.8'
+
 
 services:
   postgres:
@@ -52,19 +52,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: cms_redis
-    command: |
-      redis-server
-      --appendonly yes
-      --requirepass ${REDIS_PASSWORD:-}
-      --maxmemory ${REDIS_MAX_MEMORY:-256mb}
-      --maxmemory-policy allkeys-lru
-      --save 900 1
-      --save 300 10
-      --save 60 10000
-      --tcp-backlog 511
-      --timeout 300
-      --tcp-keepalive 300
-      --loglevel notice
+    command: redis-server /usr/local/etc/redis/redis.conf --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
@@ -149,8 +137,8 @@ services:
 
   frontend-admin:
     build:
-      context: ./frontend/admin
-      dockerfile: Dockerfile
+      context: ./frontend
+      dockerfile: admin/Dockerfile
       args:
         NODE_ENV: ${NODE_ENV:-production}
         BUILD_DATE: ${BUILD_DATE:-unknown}
@@ -159,6 +147,7 @@ services:
       - "${ADMIN_PORT:-3000}:3000"
     environment:
       # API Configuration
+      # Use backend service name inside Docker network; override env for local dev if needed
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
       NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Spotex CMS Admin}
       # Next.js Configuration
@@ -193,8 +182,8 @@ services:
 
   frontend-render:
     build:
-      context: ./frontend/render
-      dockerfile: Dockerfile
+      context: ./frontend
+      dockerfile: render/Dockerfile
       args:
         NODE_ENV: ${NODE_ENV:-production}
         BUILD_DATE: ${BUILD_DATE:-unknown}
@@ -203,6 +192,7 @@ services:
       - "${RENDER_PORT:-3001}:3001"
     environment:
       # API Configuration
+      # Use backend service name inside Docker network; override env for local dev if needed
       NEXT_PUBLIC_RENDER_API_URL: ${NEXT_PUBLIC_RENDER_API_URL:-http://localhost:8000/api/v1}
       NEXT_PUBLIC_SITE_NAME: ${NEXT_PUBLIC_SITE_NAME:-Spotex Website}
       # Next.js Configuration

@@ -94,7 +94,7 @@ class Order(Base):
     admin_notes: Mapped[Optional[str]] = Column(Text)
     
     # Metadata
-    metadata: Mapped[Optional[str]] = Column(JSON)
+    meta_data: Mapped[Optional[str]] = Column(JSON)
     
     # Timestamps
     created_at: Mapped[datetime] = Column(DateTime(timezone=True), server_default=func.now())

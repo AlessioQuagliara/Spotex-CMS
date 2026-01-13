@@ -12,7 +12,7 @@ class CampaignCreate(BaseModel):
     """Create marketing campaign"""
     name: str = Field(..., max_length=255)
     description: Optional[str] = None
-    campaign_type: str = Field(..., regex="^(email|social|referral|seasonal)$")
+    campaign_type: str = Field(..., pattern="^(email|social|referral|seasonal)$")
     target_segment: Optional[str] = None
     target_customers: Optional[List[int]] = None
     start_date: datetime
@@ -37,7 +37,7 @@ class CampaignUpdate(BaseModel):
     """Update campaign"""
     name: Optional[str] = Field(None, max_length=255)
     description: Optional[str] = None
-    status: Optional[str] = Field(None, regex="^(draft|active|paused|completed)$")
+    status: Optional[str] = Field(None, pattern="^(draft|active|paused|completed)$")
     end_date: Optional[datetime] = None
     budget: Optional[Decimal] = None
     revenue_goal: Optional[Decimal] = None
@@ -83,9 +83,9 @@ class ReferralProgramCreate(BaseModel):
     """Create referral program"""
     name: str = Field(..., max_length=255)
     description: Optional[str] = None
-    referrer_reward_type: str = Field(..., regex="^(percentage|fixed_amount|points)$")
+    referrer_reward_type: str = Field(..., pattern="^(percentage|fixed_amount|points)$")
     referrer_reward_value: Decimal = Field(..., gt=0)
-    referee_reward_type: str = Field(..., regex="^(percentage|fixed_amount|points)$")
+    referee_reward_type: str = Field(..., pattern="^(percentage|fixed_amount|points)$")
     referee_reward_value: Decimal = Field(..., gt=0)
     minimum_purchase: Optional[Decimal] = Field(None, ge=0)
     maximum_referrals_per_user: Optional[int] = Field(None, gt=0)

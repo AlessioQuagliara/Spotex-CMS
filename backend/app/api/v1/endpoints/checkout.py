@@ -162,7 +162,7 @@ async def create_order(
         coupon_code=cart.coupon_code,
         shipping_method=checkout_data.shipping_method,
         customer_notes=checkout_data.customer_notes,
-        metadata=checkout_data.metadata
+        metadata=checkout_data.meta_data
     )
     
     db.add(order)

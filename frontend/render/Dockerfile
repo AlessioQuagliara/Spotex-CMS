@@ -7,13 +7,16 @@ WORKDIR /app
 RUN apk add --no-cache libc6-compat
 
 # Copy package files
-COPY package*.json ./
+COPY render/package*.json ./
 
 # Install dependencies
-RUN npm ci
+RUN npm ci --legacy-peer-deps
+
+# Copy shared modules
+COPY shared /app/shared
 
 # Copy source code
-COPY . .
+COPY render/. /app
 
 # Build application
 ENV NEXT_TELEMETRY_DISABLED=1

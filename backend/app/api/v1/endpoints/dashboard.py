@@ -82,7 +82,7 @@ async def get_realtime_metrics(
 @router.get("/sales/chart", response_model=SalesChart)
 async def get_sales_chart(
     store_id: int,
-    period: str = Query('today', regex='^(today|week|month)$'),
+    period: str = Query('today', pattern='^(today|week|month)$'),
     current_user: User = Depends(get_current_admin_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -255,3 +255,88 @@ async def get_quick_stats(
         orders_change=calc_change(last_month_stats.orders, prev_month_stats.orders),
         revenue_change=calc_change(float(last_month_stats.revenue), float(prev_month_stats.revenue))
     )
+
+
+# ========================================
+# CMS Dashboard Endpoints (simplified)
+# ========================================
+
+from pydantic import BaseModel
+from datetime import datetime
+from typing import List, Optional
+
+class CMSStats(BaseModel):
+    """Simple CMS statistics"""
+    posts: int
+    users: int
+    media: int
+    categories: int
+
+class RecentPostSummary(BaseModel):
+    """Recent post summary for dashboard"""
+    id: int
+    title: str
+    created_at: datetime
+    views: int = 0
+    author: dict
+
+@router.get("/cms/stats", response_model=CMSStats)
+async def get_cms_stats(
+    db: AsyncSession = Depends(get_db)
+):
+    """Get simple CMS statistics for admin dashboard"""
+    from app.models.post import Post
+    from app.models.category import Category
+    from app.models.media import Media
+    
+    # Count posts
+    posts_result = await db.execute(select(func.count()).select_from(Post))
+    posts_count = posts_result.scalar() or 0
+    
+    # Count users
+    users_result = await db.execute(select(func.count()).select_from(User))
+    users_count = users_result.scalar() or 0
+    
+    # Count media
+    media_result = await db.execute(select(func.count()).select_from(Media))
+    media_count = media_result.scalar() or 0
+    
+    # Count categories
+    categories_result = await db.execute(select(func.count()).select_from(Category))
+    categories_count = categories_result.scalar() or 0
+    
+    return CMSStats(
+        posts=posts_count,
+        users=users_count,
+        media=media_count,
+        categories=categories_count
+    )
+
+@router.get("/cms/posts/recent", response_model=List[RecentPostSummary])
+async def get_recent_posts(
+    limit: int = Query(default=5, le=20),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get recent posts for admin dashboard"""
+    from app.models.post import Post
+    
+    result = await db.execute(
+        select(Post)
+        .order_by(Post.created_at.desc())
+        .limit(limit)
+    )
+    posts = result.scalars().all()
+    
+    return [
+        RecentPostSummary(
+            id=post.id,
+            title=post.title,
+            created_at=post.created_at,
+            views=post.views if hasattr(post, 'views') else 0,
+            author={
+                "username": post.author.username if post.author else "Unknown"
+            }
+        )
+        for post in posts
+    ]
+

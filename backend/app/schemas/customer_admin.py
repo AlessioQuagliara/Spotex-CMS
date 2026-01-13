@@ -10,7 +10,7 @@ from decimal import Decimal
 class CustomerFilters(BaseModel):
     """Advanced customer filters"""
     search: Optional[str] = None  # Search in name, email, phone
-    status: Optional[str] = Field(None, regex="^(active|inactive|blocked)$")
+    status: Optional[str] = Field(None, pattern="^(active|inactive|blocked)$")
     has_orders: Optional[bool] = None
     min_orders: Optional[int] = None
     max_orders: Optional[int] = None
@@ -22,8 +22,8 @@ class CustomerFilters(BaseModel):
     last_order_to: Optional[date] = None
     segment: Optional[str] = None  # Customer segment/group
     tags: Optional[List[str]] = None
-    sort_by: str = Field(default="created_at", regex="^(created_at|email|total_spent|orders_count|last_order_at)$")
-    sort_order: str = Field(default="desc", regex="^(asc|desc)$")
+    sort_by: str = Field(default="created_at", pattern="^(created_at|email|total_spent|orders_count|last_order_at)$")
+    sort_order: str = Field(default="desc", pattern="^(asc|desc)$")
 
     class Config:
         from_attributes = True
@@ -111,7 +111,7 @@ class CustomerUpdateRequest(BaseModel):
     """Update customer details"""
     name: Optional[str] = None
     phone: Optional[str] = None
-    status: Optional[str] = Field(None, regex="^(active|inactive|blocked)$")
+    status: Optional[str] = Field(None, pattern="^(active|inactive|blocked)$")
     tags: Optional[List[str]] = None
     notes: Optional[str] = None
     segment: Optional[str] = None
@@ -132,7 +132,7 @@ class CustomerGroupCreate(BaseModel):
     customer_ids: Optional[List[int]] = None
     
     # Metadata
-    color: Optional[str] = Field(None, regex="^#[0-9A-Fa-f]{6}$")
+    color: Optional[str] = Field(None, pattern="^#[0-9A-Fa-f]{6}$")
     icon: Optional[str] = None
 
     class Config:
@@ -144,7 +144,7 @@ class CustomerGroupUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[str] = None
     rules: Optional[Dict[str, Any]] = None
-    color: Optional[str] = Field(None, regex="^#[0-9A-Fa-f]{6}$")
+    color: Optional[str] = Field(None, pattern="^#[0-9A-Fa-f]{6}$")
     icon: Optional[str] = None
 
     class Config:
@@ -170,7 +170,7 @@ class CustomerGroupResponse(BaseModel):
 class CustomerBulkAction(BaseModel):
     """Bulk action on customers"""
     customer_ids: List[int] = Field(..., min_items=1)
-    action: str = Field(..., regex="^(add_tag|remove_tag|set_segment|set_status|delete)$")
+    action: str = Field(..., pattern="^(add_tag|remove_tag|set_segment|set_status|delete)$")
     value: Optional[str] = None  # Tag name, segment name, or status
 
     class Config:

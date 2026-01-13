@@ -6,16 +6,6 @@
 
 import { useEffect, useCallback } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
-
-declare global {
-  interface Window {
-    gtag: (...args: any[]) => void;
-    dataLayer: any[];
-    fbq: (...args: any[]) => void;
-    _fbq: any;
-  }
-}
-
 interface GA4Config {
   measurementId: string;
   debug?: boolean;
@@ -67,14 +57,14 @@ class GoogleAnalytics {
     document.head.appendChild(script);
 
     // Initialize dataLayer
-    window.dataLayer = window.dataLayer || [];
+    (window as any).dataLayer = (window as any).dataLayer || [];
 
     // Initialize gtag
-    window.gtag = function() {
-      window.dataLayer.push(arguments);
+    (window as any).gtag = function() {
+      (window as any).dataLayer.push(arguments);
     };
 
-    window.gtag('js', new Date());
+    (window as any).gtag('js', new Date());
 
     // Configure GA4
     const gaConfig: any = {
@@ -87,7 +77,7 @@ class GoogleAnalytics {
       gaConfig.debug_mode = true;
     }
 
-    window.gtag('config', this.measurementId, gaConfig);
+    (window as any).gtag('config', this.measurementId, gaConfig);
 
     this.initialized = true;
 
@@ -105,7 +95,7 @@ class GoogleAnalytics {
     if (!this.config.facebookPixelId) return;
 
     // Load Facebook Pixel
-    (function(f: any, b: any, e: any, v: any, n: any, t: any, s: any) {
+    (function(f: any, b: any, e: any, v: any, n?: any, t?: any, s?: any) {
       if (f.fbq) return;
       n = f.fbq = function() {
         n.callMethod
@@ -129,8 +119,10 @@ class GoogleAnalytics {
       'https://connect.facebook.net/en_US/fbevents.js'
     );
 
-    window.fbq('init', this.config.facebookPixelId);
-    window.fbq('track', 'PageView');
+    if (window.fbq) {
+      window.fbq('init', this.config.facebookPixelId);
+      window.fbq('track', 'PageView');
+    }
 
     this.fbPixelInitialized = true;
   }
@@ -141,7 +133,7 @@ class GoogleAnalytics {
   pageview(path: string, title?: string): void {
     if (!this.initialized) return;
 
-    window.gtag('config', this.measurementId, {
+    (window as any).gtag('config', this.measurementId, {
       page_title: title,
       page_location: window.location.href,
       page_path: path,
@@ -159,7 +151,7 @@ class GoogleAnalytics {
   event(eventName: string, parameters: EventParams = {}): void {
     if (!this.initialized) return;
 
-    window.gtag('event', eventName, {
+    (window as any).gtag('event', eventName, {
       ...parameters,
       timestamp: Date.now(),
     });
@@ -411,7 +403,7 @@ class GoogleAnalytics {
   setUserProperties(properties: { [key: string]: any }): void {
     if (!this.initialized) return;
 
-    window.gtag('config', this.measurementId, {
+    (window as any).gtag('config', this.measurementId, {
       custom_map: properties,
     });
   }

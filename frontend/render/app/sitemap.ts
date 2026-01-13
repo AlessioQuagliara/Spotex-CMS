@@ -1,70 +1,192 @@
 /**
- * Next.js Sitemap Generation
- * Automatically generates sitemap.xml
+ * Dynamic sitemap generation with products, categories, and pages
+ * Automatically generates sitemap.xml with data from API
  */
-import { MetadataRoute } from 'next';
+import { MetadataRoute } from "next";
 
-// TODO: Fetch from API
-async function getAllPosts() {
-  return [
-    {
-      slug: 'guida-nextjs-15',
-      updated_at: '2026-01-10T15:00:00Z',
-    },
-    {
-      slug: 'react-best-practices',
-      updated_at: '2026-01-08T10:00:00Z',
-    },
-  ];
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://spotex.com";
+
+interface Product {
+  id: string;
+  slug: string;
+  updated_at: string;
 }
 
-async function getAllPages() {
-  return [
-    {
-      slug: 'about',
-      updated_at: '2026-01-05T12:00:00Z',
-    },
-    {
-      slug: 'contact',
-      updated_at: '2026-01-05T12:00:00Z',
-    },
-  ];
+interface Category {
+  id: string;
+  slug: string;
+  updated_at: string;
 }
 
+interface Page {
+  id: string;
+  slug: string;
+  updated_at: string;
+}
+
+/**
+ * Fetch products from API
+ */
+async function getProducts(): Promise<Product[]> {
+  try {
+    const response = await fetch(`${API_URL}/api/products?limit=1000`, {
+      next: { revalidate: 3600 }, // Revalidate every hour
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch products");
+    }
+
+    const data = await response.json();
+    return data.items || [];
+  } catch (error) {
+    console.error("Error fetching products for sitemap:", error);
+    return [];
+  }
+}
+
+/**
+ * Fetch categories from API
+ */
+async function getCategories(): Promise<Category[]> {
+  try {
+    const response = await fetch(`${API_URL}/api/categories?limit=1000`, {
+      next: { revalidate: 3600 },
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch categories");
+    }
+
+    const data = await response.json();
+    return data.items || [];
+  } catch (error) {
+    console.error("Error fetching categories for sitemap:", error);
+    return [];
+  }
+}
+
+/**
+ * Fetch pages from API
+ */
+async function getPages(): Promise<Page[]> {
+  try {
+    const response = await fetch(`${API_URL}/api/pages?limit=1000`, {
+      next: { revalidate: 3600 },
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch pages");
+    }
+
+    const data = await response.json();
+    return data.items || [];
+  } catch (error) {
+    console.error("Error fetching pages for sitemap:", error);
+    return [];
+  }
+}
+
+/**
+ * Generate dynamic sitemap with products, categories, and pages
+ */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://example.com';
+  // Fetch data in parallel
+  const [products, categories, pages] = await Promise.all([
+    getProducts(),
+    getCategories(),
+    getPages(),
+  ]);
 
-  const posts = await getAllPosts();
-  const pages = await getAllPages();
+  const now = new Date().toISOString();
 
-  const postUrls = posts.map((post) => ({
-    url: `${baseUrl}/blog/${post.slug}`,
-    lastModified: new Date(post.updated_at),
-    changeFrequency: 'weekly' as const,
+  // Static pages
+  const staticPages: MetadataRoute.Sitemap = [
+    {
+      url: SITE_URL,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 1.0,
+    },
+    {
+      url: `${SITE_URL}/products`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.9,
+    },
+    {
+      url: `${SITE_URL}/categories`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
+    {
+      url: `${SITE_URL}/about`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
+    {
+      url: `${SITE_URL}/contact`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
+  ];
+
+  // Product pages
+  const productPages: MetadataRoute.Sitemap = products.map((product) => ({
+    url: `${SITE_URL}/products/${product.slug}`,
+    lastModified: product.updated_at,
+    changeFrequency: "weekly" as const,
     priority: 0.8,
   }));
 
-  const pageUrls = pages.map((page) => ({
-    url: `${baseUrl}/${page.slug}`,
-    lastModified: new Date(page.updated_at),
-    changeFrequency: 'monthly' as const,
+  // Category pages
+  const categoryPages: MetadataRoute.Sitemap = categories.map((category) => ({
+    url: `${SITE_URL}/categories/${category.slug}`,
+    lastModified: category.updated_at,
+    changeFrequency: "weekly" as const,
     priority: 0.7,
   }));
 
-  return [
-    {
-      url: baseUrl,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 1,
-    },
-    {
-      url: `${baseUrl}/blog`,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 0.9,
-    },
-    ...postUrls,
-    ...pageUrls,
-  ];
+  // Dynamic pages
+  const dynamicPages: MetadataRoute.Sitemap = pages.map((page) => ({
+    url: `${SITE_URL}/${page.slug}`,
+    lastModified: page.updated_at,
+    changeFrequency: "monthly" as const,
+    priority: 0.6,
+  }));
+
+  return [...staticPages, ...productPages, ...categoryPages, ...dynamicPages];
+}
+
+/**
+ * Generate product-specific sitemap
+ */
+export async function generateProductSitemap(): Promise<MetadataRoute.Sitemap> {
+  const products = await getProducts();
+
+  return products.map((product) => ({
+    url: `${SITE_URL}/products/${product.slug}`,
+    lastModified: product.updated_at,
+    changeFrequency: "weekly" as const,
+    priority: 0.8,
+    images: [`${SITE_URL}/images/products/${product.slug}.jpg`],
+  }));
+}
+
+/**
+ * Generate category-specific sitemap
+ */
+export async function generateCategorySitemap(): Promise<MetadataRoute.Sitemap> {
+  const categories = await getCategories();
+
+  return categories.map((category) => ({
+    url: `${SITE_URL}/categories/${category.slug}`,
+    lastModified: category.updated_at,
+    changeFrequency: "weekly" as const,
+    priority: 0.7,
+  }));
 }
