@@ -31,7 +31,10 @@ class CartController extends Controller
 
         session()->put('cart', $cart);
 
-        return response()->json(['success' => true]);
+        return response()->json([
+            'success' => true,
+            'cart' => $this->buildCartSummary($cart),
+        ]);
     }
 
     public function show()
@@ -59,7 +62,10 @@ class CartController extends Controller
 
         session()->put('cart', $cart);
 
-        return response()->json(['success' => true]);
+        return response()->json([
+            'success' => true,
+            'cart' => $this->buildCartSummary($cart),
+        ]);
     }
 
     public function remove(Request $request)
@@ -73,6 +79,22 @@ class CartController extends Controller
 
         session()->put('cart', $cart);
 
-        return response()->json(['success' => true]);
+        return response()->json([
+            'success' => true,
+            'cart' => $this->buildCartSummary($cart),
+        ]);
+    }
+
+    private function buildCartSummary(array $cart): array
+    {
+        $items = array_values($cart);
+        $count = array_reduce($items, fn ($total, $item) => $total + (int) ($item['quantity'] ?? 0), 0);
+        $subtotal = array_reduce($items, fn ($total, $item) => $total + ((float) ($item['price'] ?? 0) * (int) ($item['quantity'] ?? 0)), 0);
+
+        return [
+            'count' => $count,
+            'subtotal' => $subtotal,
+            'items' => $items,
+        ];
     }
 }

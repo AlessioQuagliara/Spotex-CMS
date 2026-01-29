@@ -14,10 +14,65 @@ class PageBuilderController extends Controller
      */
     public function show(Page $page): View
     {
+        // Se non c'è builder_data, creiamo blocchi HTML dal contenuto
+        $builderData = $page->builder_data ?? [];
+        
+        if (empty($builderData) && !empty($page->html_content)) {
+            // Dividi il contenuto in sezioni
+            $builderData = $this->parseHtmlIntoBlocks($page->html_content);
+        }
+        
         return view('builder.index', [
             'page' => $page,
-            'builderData' => $page->builder_data ?? [],
+            'builderData' => $builderData,
         ]);
+    }
+
+    /**
+     * Converte HTML in blocchi separati per ogni sezione o div principale
+     */
+    private function parseHtmlIntoBlocks(string $html): array
+    {
+        $blocks = [];
+        $y = 0;
+        
+        // Estrai i tag <section> oppure i <div> di primo livello
+        if (preg_match_all('/<section[^>]*>(.*?)<\/section>/is', $html, $matches)) {
+            foreach ($matches[1] as $index => $content) {
+                $fullSection = $matches[0][$index];
+                $blocks[] = [
+                    'id' => (string)$index,
+                    'type' => 'html-block',
+                    'content' => $fullSection,
+                    'x' => 0,
+                    'y' => $y,
+                    'width' => 1200,
+                    'height' => 300,
+                    'styles' => [
+                        'backgroundColor' => 'transparent'
+                    ]
+                ];
+                $y += 350; // Spaziatura tra blocchi
+            }
+        }
+        
+        // Se non ci sono sezioni, crea un unico blocco
+        if (empty($blocks)) {
+            $blocks[] = [
+                'id' => '0',
+                'type' => 'html-block',
+                'content' => $html,
+                'x' => 0,
+                'y' => 0,
+                'width' => 1200,
+                'height' => 800,
+                'styles' => [
+                    'backgroundColor' => 'transparent'
+                ]
+            ];
+        }
+        
+        return $blocks;
     }
 
     /**

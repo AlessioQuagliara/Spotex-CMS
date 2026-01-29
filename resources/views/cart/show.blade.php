@@ -60,14 +60,15 @@
                         </div>
                         <div class="flex justify-between">
                             <span class="text-gray-600">Spedizione</span>
-                            <span class="font-semibold">Gratuita</span>
+                            <span class="font-semibold">Da calcolare</span>
                         </div>
                     </div>
 
-                    <div class="flex justify-between text-lg font-bold text-[#010f20] mb-6">
-                        <span>Totale</span>
+                    <div class="flex justify-between text-lg font-bold text-[#010f20] mb-2">
+                        <span>Totale provvisorio</span>
                         <span>€{{ number_format($subtotal, 2, ',', '.') }}</span>
                     </div>
+                    <p class="text-xs text-gray-500 mb-6">Il costo di spedizione verrà calcolato al checkout.</p>
 
                     <a href="{{ route('checkout.index') }}" 
                        class="w-full bg-[#010f20] text-white font-bold py-3 rounded hover:bg-blue-900 transition block text-center">

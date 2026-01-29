@@ -18,9 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'log-webhook' => App\Http\Middleware\LogWebhook::class,
         ]);
 
-        // CSRF exclusion for webhook endpoints
+        // CSRF exclusion for webhook endpoints and builder API
         $middleware->validateCsrfTokens(except: [
             'api/webhooks/*',
+            'api/pages/*/builder/*',
+            'api/coupons/*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Coupon;
+use App\Models\ShippingRule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -17,13 +19,23 @@ class CheckoutController extends Controller
             return redirect()->route('cart.show');
         }
 
-        // Crea un ordine temporaneo
+        $subtotal = $this->calculateSubtotal($cart);
+        $shippingCost = 0;
+        $discountAmount = 0;
+        $total = max(0, $subtotal + $shippingCost - $discountAmount);
+
+        // Crea un ordine temporaneo (user_id nullable per guest)
         $order = Order::create([
-            'user_id' => Auth::id(),
+            'user_id' => Auth::id() ?? null,
             'status' => 'pending',
             'payment_status' => 'pending',
             'shipping_status' => 'not_shipped',
-            'total' => $this->calculateTotal($cart),
+            'subtotal' => $subtotal,
+            'shipping_cost' => $shippingCost,
+            'discount_amount' => $discountAmount,
+            'discount_code' => null,
+            'shipping_method' => null,
+            'total' => $total,
             'shipping_address' => '',
             'billing_address' => '',
         ]);
@@ -39,9 +51,12 @@ class CheckoutController extends Controller
             ]);
         }
 
+        // Converte il carrello da array associativo a array sequenziale per il JSON
+        $cartArray = array_values($cart);
+
         return view('checkout.index', [
             'order' => $order,
-            'cart' => $cart,
+            'cart' => $cartArray,
         ]);
     }
 
@@ -53,6 +68,8 @@ class CheckoutController extends Controller
             'shipping_city' => 'required|string',
             'shipping_zip' => 'required|string',
             'shipping_country' => 'required|string',
+            'shipping_method' => 'required|string',
+            'discount_code' => 'nullable|string',
             'billing_address' => 'nullable|string',
             'billing_city' => 'nullable|string',
             'billing_zip' => 'nullable|string',
@@ -66,25 +83,76 @@ class CheckoutController extends Controller
             return response()->json(['success' => false], 403);
         }
 
+        $cart = session()->get('cart', []);
+        if (empty($cart)) {
+            return response()->json(['success' => false, 'message' => 'Carrello vuoto'], 400);
+        }
+
         $shippingAddress = "{$validated['shipping_address']}, {$validated['shipping_city']}, {$validated['shipping_zip']}, {$validated['shipping_country']}";
         
         $billingAddress = $shippingAddress;
-        if ($validated['billing_address']) {
+        if (!empty($validated['billing_address'])) {
             $billingAddress = "{$validated['billing_address']}, {$validated['billing_city']}, {$validated['billing_zip']}, {$validated['billing_country']}";
         }
+
+        $subtotal = $this->calculateSubtotal($cart);
+        $shippingCost = $this->calculateShipping($validated['shipping_method'], $subtotal);
+        $discountAmount = $this->calculateDiscount($validated['discount_code'] ?? null, $subtotal);
+        $total = max(0, $subtotal + $shippingCost - $discountAmount);
 
         $order->update([
             'shipping_address' => $shippingAddress,
             'billing_address' => $billingAddress,
+            'shipping_method' => $validated['shipping_method'],
+            'discount_code' => $validated['discount_code'] ?? null,
+            'subtotal' => $subtotal,
+            'shipping_cost' => $shippingCost,
+            'discount_amount' => $discountAmount,
+            'total' => $total,
         ]);
 
-        return response()->json(['success' => true, 'order_id' => $order->id]);
+        return response()->json([
+            'success' => true,
+            'order_id' => $order->id,
+            'subtotal' => $subtotal,
+            'shipping_cost' => $shippingCost,
+            'discount_amount' => $discountAmount,
+            'total' => $total,
+        ]);
     }
 
-    private function calculateTotal(array $cart): float
+    private function calculateSubtotal(array $cart): float
     {
         return array_reduce($cart, function ($total, $item) {
             return $total + ($item['price'] * $item['quantity']);
         }, 0);
+    }
+
+    private function calculateShipping(string $method, float $subtotal): float
+    {
+        $rule = ShippingRule::where('type', $method)->where('is_active', true)->first();
+        
+        if (!$rule) {
+            return 0;
+        }
+
+        return $rule->calculateCost($subtotal);
+    }
+
+    private function calculateDiscount(?string $code, float $subtotal): float
+    {
+        if (!$code) {
+            return 0.0;
+        }
+
+        $coupon = Coupon::where('code', strtoupper(trim($code)))
+            ->where('is_active', true)
+            ->first();
+
+        if (!$coupon) {
+            return 0.0;
+        }
+
+        return $coupon->calculateDiscount($subtotal);
     }
 }

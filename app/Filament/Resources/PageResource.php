@@ -49,31 +49,18 @@ class PageResource extends Resource
                 ])->columns(2),
 
                 Forms\Components\Section::make('Contenuto')->schema([
-                    Forms\Components\Tabs::make('Contenuto')
-                        ->tabs([
-                            Forms\Components\Tabs\Tab::make('HTML')
-                                ->schema([
-                                    Forms\Components\Textarea::make('html_content')
-                                        ->label('HTML')
-                                        ->rows(10)
-                                        ->fontFamily('Courier New')
-                                        ->helperText('Generato dal builder'),
-                                ]),
-                            Forms\Components\Tabs\Tab::make('CSS')
-                                ->schema([
-                                    Forms\Components\Textarea::make('css_content')
-                                        ->label('CSS Custom')
-                                        ->rows(10)
-                                        ->fontFamily('Courier New'),
-                                ]),
-                            Forms\Components\Tabs\Tab::make('JavaScript')
-                                ->schema([
-                                    Forms\Components\Textarea::make('js_content')
-                                        ->label('JavaScript Custom')
-                                        ->rows(10)
-                                        ->fontFamily('Courier New'),
-                                ]),
-                        ])->columnSpanFull(),
+                    Forms\Components\Actions::make([
+                        Forms\Components\Actions\Action::make('builder')
+                            ->label('Apri Builder')
+                            ->icon('heroicon-o-pencil-square')
+                            ->url(fn (Page $record) => route('pages.builder', $record))
+                            ->openUrlInNewTab(),
+                        Forms\Components\Actions\Action::make('code')
+                            ->label('Modifica Codice')
+                            ->icon('heroicon-o-code-bracket')
+                            ->url(fn (Page $record) => route('pages.code', $record))
+                            ->openUrlInNewTab(),
+                    ])->fullWidth(),
                 ]),
 
                 Forms\Components\Section::make('Pubblica')->schema([
