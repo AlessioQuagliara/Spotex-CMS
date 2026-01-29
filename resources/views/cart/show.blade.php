@@ -25,15 +25,15 @@
                                 <p class="text-gray-600">€{{ number_format($item['price'], 2, ',', '.') }}</p>
 
                                 <div class="mt-4 flex items-center gap-2">
-                                    <button onclick="updateQuantity({{ $productId }}, -1)" 
-                                            class="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400">-</button>
+                                    <button data-product-id="{{ $productId }}" data-delta="-1"
+                                        class="js-qty-change bg-gray-300 px-3 py-1 rounded hover:bg-gray-400">-</button>
                                     <input type="number" value="{{ $item['quantity'] }}" 
-                                           onchange="updateQuantity({{ $productId }}, 0, this.value)"
-                                           class="w-12 text-center border border-gray-300 rounded">
-                                    <button onclick="updateQuantity({{ $productId }}, 1)" 
-                                            class="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400">+</button>
-                                    <button onclick="removeItem({{ $productId }})" 
-                                            class="ml-auto text-red-600 hover:text-red-800 font-semibold">Rimuovi</button>
+                                       data-product-id="{{ $productId }}"
+                                       class="js-qty-input w-12 text-center border border-gray-300 rounded">
+                                    <button data-product-id="{{ $productId }}" data-delta="1"
+                                        class="js-qty-change bg-gray-300 px-3 py-1 rounded hover:bg-gray-400">+</button>
+                                    <button data-product-id="{{ $productId }}"
+                                        class="js-remove-item ml-auto text-red-600 hover:text-red-800 font-semibold">Rimuovi</button>
                                 </div>
                             </div>
 
@@ -96,6 +96,28 @@
 </div>
 
 <script>
+document.querySelectorAll('.js-qty-change').forEach(button => {
+    button.addEventListener('click', () => {
+        const productId = button.dataset.productId;
+        const delta = parseInt(button.dataset.delta, 10);
+        updateQuantity(productId, delta);
+    });
+});
+
+document.querySelectorAll('.js-qty-input').forEach(input => {
+    input.addEventListener('change', () => {
+        const productId = input.dataset.productId;
+        updateQuantity(productId, 0, input.value);
+    });
+});
+
+document.querySelectorAll('.js-remove-item').forEach(button => {
+    button.addEventListener('click', () => {
+        const productId = button.dataset.productId;
+        removeItem(productId);
+    });
+});
+
 function updateQuantity(productId, change, newValue = null) {
     const quantity = newValue ? parseInt(newValue) : change;
     

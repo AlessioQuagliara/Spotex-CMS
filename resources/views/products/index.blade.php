@@ -74,8 +74,9 @@
                                 </div>
 
                                 @if($product->stock > 0)
-                                    <button onclick="addToCart({{ $product->id }})" 
-                                            class="w-full mt-4 bg-[#010f20] text-white font-bold py-2 rounded hover:bg-blue-900 transition">
+                                    <button
+                                            data-product-id="{{ $product->id }}"
+                                            class="js-add-to-cart w-full mt-4 bg-[#010f20] text-white font-bold py-2 rounded hover:bg-blue-900 transition">
                                         Aggiungi al Carrello
                                     </button>
                                 @else
@@ -104,6 +105,13 @@
 </div>
 
 <script>
+document.querySelectorAll('.js-add-to-cart').forEach(button => {
+    button.addEventListener('click', () => {
+        const productId = button.dataset.productId;
+        addToCart(productId);
+    });
+});
+
 function addToCart(productId) {
     fetch('{{ route("cart.add") }}', {
         method: 'POST',

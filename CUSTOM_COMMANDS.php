@@ -240,6 +240,7 @@ class OptimizeDatabase extends Command
 // ============================================================================
 
 // In app/Console/Kernel.php, aggiungi:
+/*
 protected function schedule(Schedule $schedule)
 {
     // Cleanup ordini pending ogni giorno
@@ -258,6 +259,8 @@ protected function schedule(Schedule $schedule)
         ->at('03:00');
 
     // Prova webhooks ogni 6 ore
+}
+*/
     $schedule->command('test:webhooks')
         ->everyHours(6);
 }

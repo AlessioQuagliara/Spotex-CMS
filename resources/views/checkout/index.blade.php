@@ -139,9 +139,12 @@
 <script src="https://js.stripe.com/v3/"></script>
 <script src="https://www.paypal.com/sdk/js?client-id={{ env('PAYPAL_CLIENT_ID') }}"></script>
 
+<script type="application/json" id="cart-data">@json($cart ?? [])</script>
+<script type="application/json" id="order-id">@json($order->id ?? null)</script>
+
 <script>
-let cart = @json($cart ?? []);
-let orderId = @json($order->id ?? null);
+let cart = JSON.parse(document.getElementById('cart-data').textContent || '[]');
+let orderId = JSON.parse(document.getElementById('order-id').textContent || 'null');
 let stripeClientSecret = null;
 let stripe = null;
 let elements = null;

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Models\OrderItem;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class CheckoutController extends Controller
 {
@@ -18,7 +19,7 @@ class CheckoutController extends Controller
 
         // Crea un ordine temporaneo
         $order = Order::create([
-            'user_id' => auth()->id(),
+            'user_id' => Auth::id(),
             'status' => 'pending',
             'payment_status' => 'pending',
             'shipping_status' => 'not_shipped',
@@ -61,7 +62,7 @@ class CheckoutController extends Controller
         $order = Order::findOrFail($validated['order_id']);
 
         // Verifica che l'ordine appartenga all'utente
-        if ($order->user_id !== auth()->id()) {
+        if ($order->user_id !== Auth::id()) {
             return response()->json(['success' => false], 403);
         }
 

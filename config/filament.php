@@ -100,9 +100,6 @@ return [
         'auth' => [
             'login' => \Filament\Pages\Auth\Login::class,
             'register' => \Filament\Pages\Auth\Register::class,
-            'request_password_reset' => \Filament\Pages\Auth\RequestPasswordReset::class,
-            'reset_password' => \Filament\Pages\Auth\ResetPassword::class,
-            'verify_email' => \Filament\Pages\Auth\VerifyEmail::class,
         ],
     ],
 
