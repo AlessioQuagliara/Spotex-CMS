@@ -15,7 +15,10 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Table;
 use Filament\Tables\Actions\EditAction;
+use Filament\Tables\Actions\BulkActionGroup;
+use Filament\Tables\Actions\BulkAction;
 use Filament\Tables\Filters\SelectFilter;
+use Illuminate\Database\Eloquent\Collection;
 
 class OrderResource extends Resource
 {
@@ -103,7 +106,7 @@ class OrderResource extends Resource
                         TextInput::make('quantity')
                             ->label('Quantità')
                             ->numeric()
-                            ->disabled(fn(?Order $record) => $record?->isPaid()),
+                            ->disabled(),
                         TextInput::make('unit_price')
                             ->label('Prezzo Unitario')
                             ->numeric()
@@ -190,6 +193,78 @@ class OrderResource extends Resource
                 ]),
         ])->defaultSort('created_at', 'desc')->actions([
             EditAction::make(),
+        ])->bulkActions([
+            BulkActionGroup::make([
+                BulkAction::make('mark_as_paid')
+                    ->label('Segna come Pagato')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->action(fn (Collection $records) => $records->each->update(['payment_status' => 'paid', 'paid_at' => now()])),
+                
+                BulkAction::make('mark_as_shipped')
+                    ->label('Segna come Spedito')
+                    ->icon('heroicon-o-truck')
+                    ->color('info')
+                    ->requiresConfirmation()
+                    ->action(fn (Collection $records) => $records->each->update(['shipping_status' => 'shipped', 'shipped_at' => now()])),
+                
+                BulkAction::make('mark_as_delivered')
+                    ->label('Segna come Consegnato')
+                    ->icon('heroicon-o-check-badge')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->action(fn (Collection $records) => $records->each->update(['shipping_status' => 'delivered', 'delivered_at' => now()])),
+                
+                BulkAction::make('update_payment_status')
+                    ->label('Cambia Stato Pagamento')
+                    ->icon('heroicon-o-banknotes')
+                    ->form([
+                        Select::make('payment_status')
+                            ->label('Stato Pagamento')
+                            ->options([
+                                'pending' => 'In Sospeso',
+                                'paid' => 'Pagato',
+                                'failed' => 'Fallito',
+                                'refunded' => 'Rimborsato',
+                            ])
+                            ->required(),
+                    ])
+                    ->action(function (Collection $records, array $data) {
+                        $records->each(function ($record) use ($data) {
+                            $record->update(['payment_status' => $data['payment_status']]);
+                            if ($data['payment_status'] === 'paid' && !$record->paid_at) {
+                                $record->update(['paid_at' => now()]);
+                            }
+                        });
+                    }),
+                
+                BulkAction::make('update_shipping_status')
+                    ->label('Cambia Stato Spedizione')
+                    ->icon('heroicon-o-truck')
+                    ->form([
+                        Select::make('shipping_status')
+                            ->label('Stato Spedizione')
+                            ->options([
+                                'not_shipped' => 'Non Spedito',
+                                'shipped' => 'Spedito',
+                                'delivered' => 'Consegnato',
+                                'returned' => 'Reso',
+                            ])
+                            ->required(),
+                    ])
+                    ->action(function (Collection $records, array $data) {
+                        $records->each(function ($record) use ($data) {
+                            $record->update(['shipping_status' => $data['shipping_status']]);
+                            if ($data['shipping_status'] === 'shipped' && !$record->shipped_at) {
+                                $record->update(['shipped_at' => now()]);
+                            }
+                            if ($data['shipping_status'] === 'delivered' && !$record->delivered_at) {
+                                $record->update(['delivered_at' => now()]);
+                            }
+                        });
+                    }),
+            ]),
         ]);
     }
 

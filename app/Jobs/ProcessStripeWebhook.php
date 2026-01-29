@@ -31,6 +31,8 @@ class ProcessStripeWebhook implements ShouldQueue
 
     /**
      * Execute the job.
+     * 
+     * PATCH: Passa event ID a handlePaymentSuccess per idempotenza
      */
     public function handle(StripeService $stripeService): void
     {
@@ -40,7 +42,7 @@ class ProcessStripeWebhook implements ShouldQueue
 
         try {
             if ($this->eventType === 'checkout.session.completed' && $this->sessionId) {
-                $order = $stripeService->handlePaymentSuccess($this->sessionId);
+                $order = $stripeService->handlePaymentSuccess($this->sessionId, $this->eventId);
                 $webhookRecord?->markAsCompleted($order?->id);
                 return;
             }

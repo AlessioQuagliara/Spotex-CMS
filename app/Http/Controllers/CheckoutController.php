@@ -54,10 +54,44 @@ class CheckoutController extends Controller
         // Converte il carrello da array associativo a array sequenziale per il JSON
         $cartArray = array_values($cart);
 
+        // Preleva gli indirizzi e i dati personali dell'utente se loggato
+        $shippingAddress = null;
+        $billingAddress = null;
+        $userFirstName = null;
+        $userLastName = null;
+        $userEmail = null;
+        
+        if (Auth::check()) {
+            $user = Auth::user();
+            $shippingAddress = $user->getShippingAddress();
+            $billingAddress = $user->getBillingAddress();
+            
+            // Splitti il nome e cognome dal campo 'name' dell'utente
+            $nameParts = $this->splitName($user->name);
+            $userFirstName = $nameParts['first'];
+            $userLastName = $nameParts['last'];
+            $userEmail = $user->email;
+        }
+
         return view('checkout.index', [
             'order' => $order,
             'cart' => $cartArray,
+            'shippingAddress' => $shippingAddress,
+            'billingAddress' => $billingAddress,
+            'userFirstName' => $userFirstName,
+            'userLastName' => $userLastName,
+            'userEmail' => $userEmail,
         ]);
+    }
+
+    private function splitName(string $fullName): array
+    {
+        $parts = explode(' ', trim($fullName), 2);
+        
+        return [
+            'first' => $parts[0] ?? '',
+            'last' => $parts[1] ?? '',
+        ];
     }
 
     public function createOrder(Request $request)

@@ -30,4 +30,8 @@ return [
     ],
 
     'password_timeout' => 10800,
+
+    'verification' => [
+        'throttle' => 60,
+    ],
 ];

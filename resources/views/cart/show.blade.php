@@ -25,13 +25,11 @@
                                 <p class="text-gray-600">€{{ number_format($item['price'], 2, ',', '.') }}</p>
 
                                 <div class="mt-4 flex items-center gap-2">
-                                    <button data-product-id="{{ $productId }}" data-delta="-1"
-                                        class="js-qty-change bg-gray-300 px-3 py-1 rounded hover:bg-gray-400">-</button>
                                     <input type="number" value="{{ $item['quantity'] }}" 
                                        data-product-id="{{ $productId }}"
                                        class="js-qty-input w-12 text-center border border-gray-300 rounded">
                                     <button data-product-id="{{ $productId }}" data-delta="1"
-                                        class="js-qty-change bg-gray-300 px-3 py-1 rounded hover:bg-gray-400">+</button>
+                                        class="js-qty-change bg-gray-300 px-3 py-1 rounded hover:bg-gray-400">Pulisci</button>
                                     <button data-product-id="{{ $productId }}"
                                         class="js-remove-item ml-auto text-red-600 hover:text-red-800 font-semibold">Rimuovi</button>
                                 </div>

@@ -9,6 +9,9 @@ use App\Http\Controllers\PageBuilderController;
 use App\Http\Controllers\FrontendPageController;
 use App\Http\Controllers\PageCodeController;
 use App\Http\Controllers\Api\CouponController;
+use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\CustomerDashboardController;
+use Illuminate\Foundation\Auth\EmailVerificationRequest;
 
 Route::get('/', [FrontendPageController::class, 'home'])->name('home');
 Route::get('/prodotti', [ProductController::class, 'index'])->name('products');
@@ -29,6 +32,69 @@ Route::post('/checkout/crea-ordine', [CheckoutController::class, 'createOrder'])
 Route::get('/api/coupons', [CouponController::class, 'list']);
 Route::get('/api/coupons/active', [CouponController::class, 'active']);
 Route::post('/api/coupons/validate', [CouponController::class, 'validateCoupon']);
+
+// ========================================
+// AUTENTICAZIONE UTENTI (CLIENTI)
+// ========================================
+
+// Registrazione
+Route::get('/registrati', [AuthController::class, 'showRegister'])->name('register');
+Route::post('/registrati', [AuthController::class, 'register'])->name('register.post');
+
+// Login
+Route::get('/accedi', [AuthController::class, 'showLogin'])->name('login');
+Route::post('/accedi', [AuthController::class, 'login'])->name('login.post');
+
+// Logout
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
+
+// Email Verification
+Route::get('/email/verifica', [AuthController::class, 'showVerificationNotice'])
+    ->middleware('auth')
+    ->name('verification.notice');
+
+Route::get('/email/verifica/{id}/{hash}', function (EmailVerificationRequest $request) {
+    $request->fulfill();
+    return redirect()->route('home')->with('success', 'Email verificata con successo!');
+})->middleware(['auth', 'signed'])->name('verification.verify');
+
+Route::post('/email/verifica/invia', [AuthController::class, 'resendVerificationEmail'])
+    ->middleware(['auth', 'throttle:6,1'])
+    ->name('verification.send');
+
+// ========================================
+// FINE AUTENTICAZIONE UTENTI
+// ========================================
+
+// ========================================
+// DASHBOARD CLIENTE (protetto)
+// ========================================
+Route::middleware(['auth', 'verified'])->prefix('/account')->name('customer.')->group(function () {
+    // Dashboard principale
+    Route::get('/', [CustomerDashboardController::class, 'index'])->name('dashboard');
+    
+    // Profilo
+    Route::get('/profilo', [CustomerDashboardController::class, 'profile'])->name('profile');
+    Route::post('/profilo', [CustomerDashboardController::class, 'updateProfile'])->name('profile.update');
+    
+    // Ordini
+    Route::get('/ordini', [CustomerDashboardController::class, 'index'])->name('orders');
+    Route::get('/ordini/{order}', [CustomerDashboardController::class, 'showOrder'])->name('orders.show');
+    Route::get('/ordini/{order}/modifica', [CustomerDashboardController::class, 'editOrder'])->name('orders.edit');
+    Route::post('/ordini/{order}', [CustomerDashboardController::class, 'updateOrder'])->name('orders.update');
+    
+    // Indirizzi
+    Route::get('/indirizzi', [CustomerDashboardController::class, 'addresses'])->name('addresses');
+    Route::get('/indirizzi/aggiungi', [CustomerDashboardController::class, 'createAddress'])->name('addresses.create');
+    Route::post('/indirizzi', [CustomerDashboardController::class, 'storeAddress'])->name('addresses.store');
+    Route::get('/indirizzi/{address}/modifica', [CustomerDashboardController::class, 'editAddress'])->name('addresses.edit');
+    Route::post('/indirizzi/{address}', [CustomerDashboardController::class, 'updateAddress'])->name('addresses.update');
+    Route::delete('/indirizzi/{address}', [CustomerDashboardController::class, 'destroyAddress'])->name('addresses.destroy');
+});
+
+// ========================================
+// FINE DASHBOARD CLIENTE
+// ========================================
 
 // Builder per pagine (protetto da autenticazione admin)
 Route::middleware('auth')->group(function () {

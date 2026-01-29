@@ -60,6 +60,9 @@ class FooterSettingResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     // no bulk actions
                 ]),
+            ])
+            ->headerActions([
+                Tables\Actions\CreateAction::make(),
             ]);
     }
 

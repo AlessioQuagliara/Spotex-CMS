@@ -14,9 +14,11 @@ class PayPalService
     private string $webhookId;
     private string $baseUrl;
     private string $mode;
+    private PlatformPaymentsAdapter $platformAdapter;
 
-    public function __construct()
+    public function __construct(PlatformPaymentsAdapter $platformAdapter)
     {
+        $this->platformAdapter = $platformAdapter;
         $this->clientId = config('services.paypal.client_id');
         $this->clientSecret = config('services.paypal.client_secret');
         $this->webhookId = config('services.paypal.webhook_id');
@@ -50,6 +52,8 @@ class PayPalService
 
     /**
      * Crea un ordine PayPal con i dettagli degli item
+     * 
+     * PATCH: Aggiunge parametri multiparty se platform_mode attivo
      */
     public function createOrder(Order $order): array
     {
@@ -69,25 +73,46 @@ class PayPalService
                 ];
             }
 
-            $purchaseUnits = [
-                [
-                    'reference_id' => (string)$order->id,
-                    'amount' => [
-                        'currency_code' => 'EUR',
-                        'value' => number_format((float) $order->total, 2, '.', ''),
-                        'breakdown' => [
-                            'item_total' => [
-                                'currency_code' => 'EUR',
-                                'value' => number_format((float) $order->total, 2, '.', ''),
-                            ],
+            // Base purchase unit (UNCHANGED)
+            $purchaseUnit = [
+                'reference_id' => (string)$order->id,
+                'amount' => [
+                    'currency_code' => 'EUR',
+                    'value' => number_format((float) $order->total, 2, '.', ''),
+                    'breakdown' => [
+                        'item_total' => [
+                            'currency_code' => 'EUR',
+                            'value' => number_format((float) $order->total, 2, '.', ''),
                         ],
                     ],
-                    'items' => $items,
-                    'shipping' => [
-                        'address' => $this->formatAddress($order->shipping_address),
-                    ],
+                ],
+                'items' => $items,
+                'shipping' => [
+                    'address' => $this->formatAddress($order->shipping_address),
                 ],
             ];
+
+            // PLATFORM PATCH: Merge multiparty params if active
+            $platformParams = $this->platformAdapter->getPayPalMultipartyParams($order);
+            if (!empty($platformParams)) {
+                $purchaseUnit = array_merge($purchaseUnit, $platformParams);
+                
+                // Update order with platform metadata
+                $order->update([
+                    'payment_provider' => 'paypal',
+                    'platform_mode' => $this->platformAdapter->getPlatformMode(),
+                    'commission_amount' => $this->platformAdapter->getCommissionAmount($order),
+                ]);
+                
+                // TODO: PayPal Multiparty requires partner permissions.
+                // If not available, this will fail. Fallback to standard mode in that case.
+                Log::info('PayPal Multiparty mode active', [
+                    'order_id' => $order->id,
+                    'commission_cents' => $order->commission_amount,
+                ]);
+            }
+
+            $purchaseUnits = [$purchaseUnit];
 
             $response = Http::withToken($token)
                 ->post("{$this->baseUrl}/v2/checkout/orders", [
@@ -100,7 +125,12 @@ class PayPalService
                 ])
                 ->throw();
 
-            return $response->json();
+            $result = $response->json();
+            
+            // Save PayPal order ID
+            $order->update(['provider_payment_id' => $result['id'] ?? null]);
+
+            return $result;
         } catch (\Exception $e) {
             Log::error('PayPal createOrder failed', [
                 'error' => $e->getMessage(),

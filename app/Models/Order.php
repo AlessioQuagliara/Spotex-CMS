@@ -23,10 +23,21 @@ class Order extends Model
         'payment_method',
         'shipping_address',
         'billing_address',
+        'billing_same_as_shipping',
+        'billing_name',
+        'billing_company',
+        'billing_tax_id',
+        'notes',
         'paid_at',
         'shipped_at',
         'delivered_at',
         'tracking_number',
+        // Platform payments - ADDED
+        'payment_provider',
+        'platform_mode',
+        'commission_amount',
+        'provider_payment_id',
+        'provider_event_id',
     ];
 
     protected $casts = [

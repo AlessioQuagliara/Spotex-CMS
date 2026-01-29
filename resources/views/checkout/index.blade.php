@@ -63,24 +63,30 @@
                             <h2 class="text-2xl font-bold text-black">Dati Personali</h2>
                         </div>
                         
+                        @if($userFirstName)
+                            <div class="md:col-span-2 text-xs text-gray-500 bg-blue-50 p-3 rounded mb-6">
+                                ✓ Dati caricati dal tuo account
+                            </div>
+                        @endif
+                        
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div class="space-y-1">
                                 <label class="text-sm font-medium text-gray-700">Nome *</label>
                                 <input type="text" name="customer_first_name" placeholder="Nome" required
                                        class="w-full px-4 py-3 border border-gray-300 rounded-none focus:outline-none focus:border-black text-gray-900 placeholder-gray-400"
-                                       value="{{ old('customer_first_name') }}">
+                                       value="{{ old('customer_first_name', $userFirstName ?? '') }}">
                             </div>
                             <div class="space-y-1">
                                 <label class="text-sm font-medium text-gray-700">Cognome *</label>
                                 <input type="text" name="customer_last_name" placeholder="Cognome" required
                                        class="w-full px-4 py-3 border border-gray-300 rounded-none focus:outline-none focus:border-black text-gray-900 placeholder-gray-400"
-                                       value="{{ old('customer_last_name') }}">
+                                       value="{{ old('customer_last_name', $userLastName ?? '') }}">
                             </div>
                             <div class="md:col-span-2 space-y-1">
                                 <label class="text-sm font-medium text-gray-700">Email *</label>
                                 <input type="email" name="customer_email" placeholder="email@example.com" required
                                        class="w-full px-4 py-3 border border-gray-300 rounded-none focus:outline-none focus:border-black text-gray-900 placeholder-gray-400"
-                                       value="{{ old('customer_email') }}">
+                                       value="{{ old('customer_email', $userEmail ?? '') }}">
                             </div>
                         </div>
                     </div>
@@ -97,32 +103,37 @@
                                 <label class="text-sm font-medium text-gray-700">Indirizzo *</label>
                                 <input type="text" name="shipping_address" placeholder="Via, numero civico" required
                                        class="w-full px-4 py-3 border border-gray-300 rounded-none focus:outline-none focus:border-black text-gray-900 placeholder-gray-400"
-                                       value="{{ old('shipping_address', $user->address ?? '') }}">
+                                       value="{{ old('shipping_address', $shippingAddress?->address ?? '') }}">
                                 <div class="text-xs text-gray-500 mt-1">Esempio: Via Roma 123</div>
                             </div>
                             <div class="space-y-1">
                                 <label class="text-sm font-medium text-gray-700">Città *</label>
                                 <input type="text" name="shipping_city" placeholder="Città" required
                                        class="w-full px-4 py-3 border border-gray-300 rounded-none focus:outline-none focus:border-black text-gray-900 placeholder-gray-400"
-                                       value="{{ old('shipping_city', $user->city ?? '') }}">
+                                       value="{{ old('shipping_city', $shippingAddress?->city ?? '') }}">
                             </div>
                             <div class="space-y-1">
                                 <label class="text-sm font-medium text-gray-700">CAP *</label>
                                 <input type="text" name="shipping_zip" placeholder="Codice postale" required
                                        class="w-full px-4 py-3 border border-gray-300 rounded-none focus:outline-none focus:border-black text-gray-900 placeholder-gray-400"
-                                       value="{{ old('shipping_zip', $user->zip ?? '') }}">
+                                       value="{{ old('shipping_zip', $shippingAddress?->postal_code ?? '') }}">
                             </div>
                             <div class="space-y-1">
                                 <label class="text-sm font-medium text-gray-700">Paese *</label>
                                 <select name="shipping_country" required
                                         class="w-full px-4 py-3 border border-gray-300 rounded-none focus:outline-none focus:border-black text-gray-900 bg-white appearance-none">
-                                    <option value="IT" {{ (old('shipping_country', $user->country ?? 'IT') == 'IT') ? 'selected' : '' }}>Italia</option>
+                                    <option value="IT" {{ (old('shipping_country', $shippingAddress?->country ?? 'IT') == 'IT') ? 'selected' : '' }}>Italia</option>
                                     <option value="FR" {{ (old('shipping_country') == 'FR') ? 'selected' : '' }}>Francia</option>
                                     <option value="DE" {{ (old('shipping_country') == 'DE') ? 'selected' : '' }}>Germania</option>
                                     <option value="ES" {{ (old('shipping_country') == 'ES') ? 'selected' : '' }}>Spagna</option>
                                 </select>
                                 <div class="text-xs text-gray-500 mt-1">Attualmente spediamo solo in Europa</div>
                             </div>
+                            @if($shippingAddress)
+                                <div class="md:col-span-2 text-xs text-gray-500 bg-blue-50 p-3 rounded">
+                                    ✓ Indirizzo caricato dal tuo account
+                                </div>
+                            @endif
                         </div>
                     </div>
 
@@ -190,30 +201,42 @@
                         </div>
 
                         <div id="billingForm" class="hidden space-y-6 pt-4 border-t border-gray-200">
+                            @if($billingAddress)
+                                <div class="md:col-span-2 text-xs text-gray-500 bg-blue-50 p-3 rounded">
+                                    ✓ Indirizzo caricato dal tuo account
+                                </div>
+                            @endif
+                            
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div class="space-y-1">
                                     <label class="text-sm font-medium text-gray-700">Indirizzo di fatturazione *</label>
                                     <input type="text" name="billing_address" placeholder="Via, numero civico" required
+                                           value="{{ old('billing_address', $billingAddress?->address ?? '') }}"
                                            class="w-full px-4 py-3 border border-gray-300 rounded-none focus:outline-none focus:border-black text-gray-900 placeholder-gray-400">
                                 </div>
                                 <div class="space-y-1">
                                     <label class="text-sm font-medium text-gray-700">Città *</label>
                                     <input type="text" name="billing_city" placeholder="Città" required
+                                           value="{{ old('billing_city', $billingAddress?->city ?? '') }}"
                                            class="w-full px-4 py-3 border border-gray-300 rounded-none focus:outline-none focus:border-black text-gray-900 placeholder-gray-400">
                                 </div>
                                 <div class="space-y-1">
                                     <label class="text-sm font-medium text-gray-700">CAP *</label>
                                     <input type="text" name="billing_zip" placeholder="Codice postale" required
+                                           value="{{ old('billing_zip', $billingAddress?->postal_code ?? '') }}"
                                            class="w-full px-4 py-3 border border-gray-300 rounded-none focus:outline-none focus:border-black text-gray-900 placeholder-gray-400">
                                 </div>
                                 <div class="space-y-1">
                                     <label class="text-sm font-medium text-gray-700">Paese *</label>
                                     <select name="billing_country" required
                                             class="w-full px-4 py-3 border border-gray-300 rounded-none focus:outline-none focus:border-black text-gray-900 bg-white appearance-none">
-                                        <option value="IT">Italia</option>
-                                        <option value="FR">Francia</option>
-                                        <option value="DE">Germania</option>
-                                        <option value="ES">Spagna</option>
+                                        @php
+                                            $selectedCountry = old('billing_country', $billingAddress?->country ?? 'IT');
+                                        @endphp
+                                        <option value="IT" {{ $selectedCountry === 'IT' ? 'selected' : '' }}>Italia</option>
+                                        <option value="FR" {{ $selectedCountry === 'FR' ? 'selected' : '' }}>Francia</option>
+                                        <option value="DE" {{ $selectedCountry === 'DE' ? 'selected' : '' }}>Germania</option>
+                                        <option value="ES" {{ $selectedCountry === 'ES' ? 'selected' : '' }}>Spagna</option>
                                     </select>
                                 </div>
                             </div>
@@ -240,7 +263,7 @@
                                 </button>
                             </div>
                             <div id="couponFeedback" class="text-sm mt-2"></div>
-                            <div id="couponList" class="text-xs text-gray-500 mt-3">
+                            <div id="couponList" class="text-xs text-gray-500 mt-3" hidden>
                                 <div class="font-medium mb-1">Codici disponibili:</div>
                                 <div class="space-y-1" id="availableCoupons"></div>
                             </div>
@@ -624,11 +647,14 @@ function loadCartSummary() {
         const itemTotal = parseFloat(item.price) * item.quantity;
         subtotal += itemTotal;
         
+        // Costruisci l'URL completo dell'immagine
+        const imageUrl = item.image ? (item.image.startsWith('http') ? item.image : `/storage/${item.image}`) : null;
+        
         const html = `
             <div class="flex items-center justify-between py-3 border-b border-gray-100">
                 <div class="flex items-center">
                     <div class="w-12 h-12 bg-gray-100 flex items-center justify-center mr-3">
-                        ${item.image ? `<img src="${item.image}" alt="${item.name}" class="w-full h-full object-cover">` : 
+                        ${imageUrl ? `<img src="${imageUrl}" alt="${item.name}" class="w-full h-full object-cover">` : 
                           '<svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>'}
                     </div>
                     <div>

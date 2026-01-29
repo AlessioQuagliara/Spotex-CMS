@@ -162,25 +162,32 @@
 
                         <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(auth()->guard()->check()): ?>
                             <div class="relative group">
-                                <button class="p-2 rounded hover:opacity-80 transition" title="Account">
+                                <button class="p-2 rounded hover:opacity-80 transition" title="Il mio account">
                                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M10 2a4 4 0 100 8 4 4 0 000-8zm-7 16a7 7 0 0114 0H3z" clip-rule="evenodd" />
                                     </svg>
                                 </button>
 
                                 <div class="hidden group-hover:block absolute right-0 w-48 bg-white text-gray-800 rounded shadow-lg py-2 z-20">
-                                    <div class="px-4 py-2 text-sm text-gray-500"><?php echo e(auth()->user()->name); ?></div>
-                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(auth()->user()->is_admin ?? false): ?>
-                                        <a href="/admin" class="block px-4 py-2 hover:bg-gray-100">Pannello Admin</a>
+                                    <div class="px-4 py-2 text-sm text-gray-500 border-b">
+                                        <?php echo e(auth()->user()->name); ?>
+
+                                    </div>
+                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(!auth()->user()->hasVerifiedEmail()): ?>
+                                        <div class="px-4 py-2 text-xs bg-yellow-50 text-yellow-800 border-b">
+                                            ⚠️ Email non verificata
+                                        </div>
                                     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                                    <a href="#" class="block px-4 py-2 hover:bg-gray-100">Il mio profilo</a>
+                                    <a href="#" class="block px-4 py-2 hover:bg-gray-100">I miei ordini</a>
                                     <form method="POST" action="<?php echo e(route('logout')); ?>" class="block">
                                         <?php echo csrf_field(); ?>
-                                        <button type="submit" class="w-full text-left px-4 py-2 hover:bg-gray-100">Logout</button>
+                                        <button type="submit" class="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600">Logout</button>
                                     </form>
                                 </div>
                             </div>
                         <?php else: ?>
-                            <a href="/admin/login" class="p-2 rounded hover:opacity-80 transition" title="Account">
+                            <a href="<?php echo e(route('login')); ?>" class="p-2 rounded hover:opacity-80 transition" title="Accedi">
                                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M10 2a4 4 0 100 8 4 4 0 000-8zm-7 16a7 7 0 0114 0H3z" clip-rule="evenodd" />
                                 </svg>
@@ -227,23 +234,66 @@
                 <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
                 <a href="<?php echo e(route('products')); ?>" class="block px-4 py-2 rounded hover:opacity-80 transition">Cerca</a>
-                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(auth()->guard()->guest()): ?>
-                    <a href="/login" class="block px-4 py-2 rounded hover:opacity-80 transition">Account</a>
-                <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                <a href="<?php echo e(route('cart.show')); ?>" class="block px-4 py-2 rounded hover:opacity-80 transition">Carrello</a>
                 
                 <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(auth()->guard()->check()): ?>
-                    <a href="<?php echo e(route('cart.show')); ?>" class="block px-4 py-2 rounded hover:opacity-80 transition">Carrello</a>
-                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(auth()->user()->is_admin ?? false): ?>
-                        <a href="/admin" class="block px-4 py-2 rounded hover:opacity-80 transition">Pannello Admin</a>
-                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
-                    <form method="POST" action="<?php echo e(route('logout')); ?>">
-                        <?php echo csrf_field(); ?>
-                        <button type="submit" class="w-full text-left px-4 py-2 rounded hover:opacity-80 transition">Logout</button>
-                    </form>
+                    <div class="border-t pt-2 mt-2">
+                        <div class="px-4 py-2 text-sm font-medium"><?php echo e(auth()->user()->name); ?></div>
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(!auth()->user()->hasVerifiedEmail()): ?>
+                            <div class="px-4 py-1 text-xs bg-yellow-50 text-yellow-800">⚠️ Email non verificata</div>
+                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                        <a href="#" class="block px-4 py-2 rounded hover:opacity-80 transition">Il mio profilo</a>
+                        <a href="#" class="block px-4 py-2 rounded hover:opacity-80 transition">I miei ordini</a>
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(auth()->user()->is_admin ?? false): ?>
+                            <a href="/admin" class="block px-4 py-2 rounded hover:opacity-80 transition">Pannello Admin</a>
+                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                        <form method="POST" action="<?php echo e(route('logout')); ?>">
+                            <?php echo csrf_field(); ?>
+                            <button type="submit" class="w-full text-left px-4 py-2 rounded hover:opacity-80 transition text-red-600">Logout</button>
+                        </form>
+                    </div>
+                <?php else: ?>
+                    <a href="<?php echo e(route('login')); ?>" class="block px-4 py-2 rounded hover:opacity-80 transition">Accedi</a>
+                    <a href="<?php echo e(route('register')); ?>" class="block px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition text-center">Registrati</a>
                 <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
             </div>
         </div>
     </nav>
+
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(auth()->guard()->check()): ?>
+        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(auth()->user()->is_admin ?? false): ?>
+            <!-- Edit Mode Banner -->
+            <div class="bg-blue-600 text-white shadow-lg sticky top-0 z-40">
+                <div class="container mx-auto px-4 py-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            <span class="font-medium">Pagina in visualizzazione</span>
+                        </div>
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(isset($page) && $page->id): ?>
+                            <a href="/admin/pages/<?php echo e($page->id); ?>/builder" class="flex items-center gap-2 bg-white text-blue-600 px-4 py-2 rounded hover:bg-blue-50 transition font-medium text-sm">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                                Modifica questa pagina
+                            </a>
+                        <?php else: ?>
+                            <a href="/admin" class="flex items-center gap-2 bg-white text-blue-600 px-4 py-2 rounded hover:bg-blue-50 transition font-medium text-sm">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                Vai al Pannello Admin
+                            </a>
+                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
     <!-- Main Content -->
     <main>

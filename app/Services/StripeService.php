@@ -9,13 +9,18 @@ use Illuminate\Support\Facades\Log;
 
 class StripeService
 {
-    public function __construct()
+    private PlatformPaymentsAdapter $platformAdapter;
+
+    public function __construct(PlatformPaymentsAdapter $platformAdapter)
     {
+        $this->platformAdapter = $platformAdapter;
         Stripe::setApiKey(config('services.stripe.secret'));
     }
 
     /**
      * Crea una sessione Stripe Checkout
+     * 
+     * PATCH: Aggiunge parametri Stripe Connect se platform_mode attivo
      */
     public function createCheckoutSession(Order $order): string
     {
@@ -37,7 +42,8 @@ class StripeService
             ];
         }
 
-        $session = Session::create([
+        // Base parameters (UNCHANGED)
+        $sessionParams = [
             'payment_method_types' => ['card'],
             'line_items' => $lineItems,
             'mode' => 'payment',
@@ -47,7 +53,25 @@ class StripeService
             'metadata' => [
                 'order_id' => $order->id,
             ],
-        ]);
+        ];
+
+        // PLATFORM PATCH: Merge Stripe Connect params if active
+        $platformParams = $this->platformAdapter->getStripeConnectParams($order);
+        if (!empty($platformParams)) {
+            $sessionParams = array_merge($sessionParams, $platformParams);
+            
+            // Update order with platform metadata
+            $order->update([
+                'payment_provider' => 'stripe',
+                'platform_mode' => $this->platformAdapter->getPlatformMode(),
+                'commission_amount' => $this->platformAdapter->getCommissionAmount($order),
+            ]);
+        }
+
+        $session = Session::create($sessionParams);
+
+        // Save session ID to order
+        $order->update(['provider_payment_id' => $session->id]);
 
         return $session->id;
     }
@@ -76,8 +100,10 @@ class StripeService
 
     /**
      * Aggiorna lo stato dell'ordine dopo pagamento confermato
+     * 
+     * PATCH: Salva provider_event_id per idempotenza
      */
-    public function handlePaymentSuccess(string $sessionId): ?Order
+    public function handlePaymentSuccess(string $sessionId, ?string $eventId = null): ?Order
     {
         $session = Session::retrieve($sessionId);
         
@@ -90,6 +116,7 @@ class StripeService
                 // Compatibilità legacy
                 $order->update([
                     'status' => 'paid',
+                    'provider_event_id' => $eventId, // ADDED for idempotency
                 ]);
             }
 
