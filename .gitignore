@@ -1,1 +1,2 @@
-.env.payment.examplestorage/logs/*.log
+.env.payment.example
+storage/logs/*.log
