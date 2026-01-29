@@ -13,7 +13,7 @@ class ProductController extends Controller
         $query = Product::where('is_active', true);
 
         if ($request->has('category')) {
-            $category = Category::where('slug', $request->category)->first();
+            $category = Category::where('slug', $request->get('category'))->first();
             if ($category) {
                 $query->where('category_id', $category->id);
             }
