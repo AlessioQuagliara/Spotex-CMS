@@ -74,9 +74,9 @@ class CategoryResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => \App\Filament\Resources\CategoryResource\Pages\ListCategories::class,
-            'create' => \App\Filament\Resources\CategoryResource\Pages\CreateCategory::class,
-            'edit' => \App\Filament\Resources\CategoryResource\Pages\EditCategory::class,
+            'index' => \App\Filament\Resources\CategoryResource\Pages\ListCategories::route('/'),
+            'create' => \App\Filament\Resources\CategoryResource\Pages\CreateCategory::route('/create'),
+            'edit' => \App\Filament\Resources\CategoryResource\Pages\EditCategory::route('/{record}/edit'),
         ];
     }
 }

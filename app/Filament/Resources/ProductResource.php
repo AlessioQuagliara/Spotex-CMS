@@ -121,9 +121,9 @@ class ProductResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => \App\Filament\Resources\ProductResource\Pages\ListProducts::class,
-            'create' => \App\Filament\Resources\ProductResource\Pages\CreateProduct::class,
-            'edit' => \App\Filament\Resources\ProductResource\Pages\EditProduct::class,
+            'index' => \App\Filament\Resources\ProductResource\Pages\ListProducts::route('/'),
+            'create' => \App\Filament\Resources\ProductResource\Pages\CreateProduct::route('/create'),
+            'edit' => \App\Filament\Resources\ProductResource\Pages\EditProduct::route('/{record}/edit'),
         ];
     }
 }

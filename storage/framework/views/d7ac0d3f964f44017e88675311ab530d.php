@@ -51,8 +51,7 @@
                         Carrello
                     </a>
                 <?php else: ?>
-                    <a href="<?php echo e(route('login')); ?>" class="hover:text-blue-300 transition">Login</a>
-                    <a href="<?php echo e(route('register')); ?>" class="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700 transition">Registrati</a>
+                    
                 <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
             </div>
         </div>

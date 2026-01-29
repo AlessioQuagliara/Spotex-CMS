@@ -40,6 +40,7 @@
     36 => 'Termwind\\Laravel\\TermwindServiceProvider',
     37 => 'RyanChandler\\BladeCaptureDirective\\BladeCaptureDirectiveServiceProvider',
     38 => 'App\\Providers\\AppServiceProvider',
+    39 => 'App\\Filament\\AdminPanelProvider',
   ),
   'eager' => 
   array (
@@ -69,6 +70,7 @@
     23 => 'Termwind\\Laravel\\TermwindServiceProvider',
     24 => 'RyanChandler\\BladeCaptureDirective\\BladeCaptureDirectiveServiceProvider',
     25 => 'App\\Providers\\AppServiceProvider',
+    26 => 'App\\Filament\\AdminPanelProvider',
   ),
   'deferred' => 
   array (

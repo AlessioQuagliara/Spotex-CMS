@@ -50,8 +50,7 @@
                         Carrello
                     </a>
                 @else
-                    <a href="{{ route('login') }}" class="hover:text-blue-300 transition">Login</a>
-                    <a href="{{ route('register') }}" class="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700 transition">Registrati</a>
+                    {{-- Login and Register routes not yet defined --}}
                 @endauth
             </div>
         </div>

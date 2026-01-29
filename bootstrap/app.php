@@ -11,6 +11,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withProviders([
         App\Providers\AppServiceProvider::class,
+        App\Filament\AdminPanelProvider::class,
     ])
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([

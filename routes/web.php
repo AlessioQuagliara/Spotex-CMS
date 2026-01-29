@@ -5,12 +5,18 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\PageBuilderController;
 
 Route::get('/', [ProductController::class, 'index'])->name('home');
 Route::get('/prodotti', [ProductController::class, 'index'])->name('products');
 Route::get('/prodotto/{product:slug}', [ProductController::class, 'show'])->name('product.show');
 
+// Builder per pagine (protetto da autenticazione admin)
 Route::middleware('auth')->group(function () {
+    Route::get('/admin/pages/{page}/builder', [PageBuilderController::class, 'show'])->name('pages.builder');
+    Route::post('/api/pages/{page}/builder/save', [PageBuilderController::class, 'save'])->name('pages.builder.save');
+    Route::get('/api/pages/{page}/builder/export', [PageBuilderController::class, 'export'])->name('pages.builder.export');
+
     // Carrello
     Route::post('/carrello/aggiungi', [CartController::class, 'add'])->name('cart.add');
     Route::get('/carrello', [CartController::class, 'show'])->name('cart.show');
@@ -29,4 +35,5 @@ Route::middleware('auth')->group(function () {
     Route::get('/checkout/success/{order}', [PaymentController::class, 'checkoutSuccess'])->name('checkout.success');
     Route::get('/checkout/cancel/{order}', [PaymentController::class, 'checkoutCancel'])->name('checkout.cancel');
 });
+
 

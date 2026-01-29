@@ -14,13 +14,26 @@ class MonthlySalesChart extends ChartWidget
     protected function getData(): array
     {
         $currentYear = now()->year;
-        
-        $data = Order::where('payment_status', 'paid')
-            ->whereYear('paid_at', $currentYear)
-            ->groupBy(DB::raw('MONTH(paid_at)'))
-            ->selectRaw('MONTH(paid_at) as month, SUM(total) as total')
-            ->orderBy(DB::raw('MONTH(paid_at)'))
-            ->get();
+
+        $driver = DB::connection()->getDriverName();
+
+        if ($driver === 'sqlite') {
+            $monthExpr = "CAST(strftime('%m', paid_at) AS INTEGER)";
+
+            $data = Order::where('payment_status', 'paid')
+                ->whereYear('paid_at', $currentYear)
+                ->groupBy(DB::raw($monthExpr))
+                ->selectRaw($monthExpr . ' as month, SUM(total) as total')
+                ->orderBy(DB::raw($monthExpr))
+                ->get();
+        } else {
+            $data = Order::where('payment_status', 'paid')
+                ->whereYear('paid_at', $currentYear)
+                ->groupBy(DB::raw('MONTH(paid_at)'))
+                ->selectRaw('MONTH(paid_at) as month, SUM(total) as total')
+                ->orderBy(DB::raw('MONTH(paid_at)'))
+                ->get();
+        }
 
         $labels = [
             'Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu',
