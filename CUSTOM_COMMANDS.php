@@ -259,11 +259,10 @@ protected function schedule(Schedule $schedule)
         ->at('03:00');
 
     // Prova webhooks ogni 6 ore
-}
-*/
     $schedule->command('test:webhooks')
         ->everyHours(6);
 }
+*/
 
 // ============================================================================
 // USAGE EXAMPLES

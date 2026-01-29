@@ -23,6 +23,7 @@ class PaymentFlowTest extends TestCase
      */
     public function test_stripe_checkout_flow(): void
     {
+        /** @var \App\Models\User $user */
         $user = User::factory()->create();
         $product = Product::factory()->create();
 
@@ -34,7 +35,9 @@ class PaymentFlowTest extends TestCase
             ->assertJson(['success' => true]);
 
         $cartResponse = $this->get(route('cart.show'));
-        $this->assertStringContainsString($product->name, $cartResponse->getContent());
+        if (!str_contains($cartResponse->getContent(), $product->name)) {
+            throw new \RuntimeException('Product name not found in cart response.');
+        }
     }
 
     /**
@@ -42,6 +45,7 @@ class PaymentFlowTest extends TestCase
      */
     public function test_create_order(): void
     {
+        /** @var \App\Models\User $user */
         $user = User::factory()->create();
         $order = Order::factory()->create([
             'user_id' => $user->id,
@@ -68,6 +72,7 @@ class PaymentFlowTest extends TestCase
      */
     public function test_paid_order_cannot_be_modified(): void
     {
+        /** @var \App\Models\User $user */
         $user = User::factory()->create();
         $order = Order::factory()->create([
             'user_id' => $user->id,
@@ -85,7 +90,9 @@ class PaymentFlowTest extends TestCase
      */
     public function test_cannot_access_other_users_order(): void
     {
+        /** @var \App\Models\User $user1 */
         $user1 = User::factory()->create();
+        /** @var \App\Models\User $user2 */
         $user2 = User::factory()->create();
         $order = Order::factory()->create(['user_id' => $user1->id]);
 
@@ -162,6 +169,7 @@ class PaymentFlowTest extends TestCase
      */
     public function test_cannot_add_out_of_stock_product(): void
     {
+        /** @var \App\Models\User $user */
         $user = User::factory()->create();
         $product = Product::factory()->create(['stock' => 0]);
 
@@ -172,7 +180,9 @@ class PaymentFlowTest extends TestCase
             ]);
 
         $product->refresh();
-        $this->assertEquals(0, $product->stock);
+        if ($product->stock !== 0) {
+            throw new \RuntimeException('Stock should be 0 for out of stock product.');
+        }
     }
 
     /**
@@ -180,6 +190,7 @@ class PaymentFlowTest extends TestCase
      */
     public function test_cart_add_update_remove(): void
     {
+        /** @var \App\Models\User $user */
         $user = User::factory()->create();
         $product = Product::factory()->create();
 
