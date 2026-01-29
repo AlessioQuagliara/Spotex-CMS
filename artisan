@@ -1,0 +1,27 @@
+#!/usr/bin/env php
+<?php
+
+/*
+|--------------------------------------------------------------------------
+| Laravel Application Console Kernel
+|--------------------------------------------------------------------------
+|
+| This script handles all console requests for the Laravel application.
+| It bootstraps the framework and then processes the request.
+|
+*/
+
+define('LARAVEL_START', microtime(true));
+
+require __DIR__.'/vendor/autoload.php';
+
+$app = require_once __DIR__.'/bootstrap/app.php';
+
+$kernel = $app->make(\Illuminate\Contracts\Console\Kernel::class);
+
+$status = $kernel->handle(
+    $input = new \Symfony\Component\Console\Input\ArgvInput,
+    new \Symfony\Component\Console\Output\ConsoleOutput
+);
+
+exit($status);

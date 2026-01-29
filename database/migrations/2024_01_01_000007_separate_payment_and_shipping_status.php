@@ -32,11 +32,7 @@ return new class extends Migration
                 ->after('payment_status')
                 ->index();
 
-            // Timestamp per il pagamento (già esiste come paid_at, ma dichiaro esplicitamente)
-            $table->timestamp('shipped_at')->nullable()->after('paid_at');
-            $table->timestamp('delivered_at')->nullable()->after('shipped_at');
-
-            // Tracking number per spedizione
+            // Tracking number per spedizione (shipped_at e delivered_at già esistono in orders)
             $table->string('tracking_number')->nullable()->after('delivered_at')->index();
         });
     }
@@ -50,8 +46,6 @@ return new class extends Migration
             $table->dropColumn([
                 'payment_status',
                 'shipping_status',
-                'shipped_at',
-                'delivered_at',
                 'tracking_number',
             ]);
         });
