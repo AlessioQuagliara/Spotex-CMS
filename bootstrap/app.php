@@ -17,10 +17,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'log-webhook' => App\Http\Middleware\LogWebhook::class,
         ]);
 
-        // CSRF exclusion clean (Laravel 11+)
+        // CSRF exclusion for webhook endpoints
         $middleware->validateCsrfTokens(except: [
-            'api/webhooks/stripe',
-            'api/webhooks/paypal',
+            'api/webhooks/*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
