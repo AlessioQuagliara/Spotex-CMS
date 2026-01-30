@@ -177,6 +177,19 @@ const ComponentRenderer = ({ element, level = 0 }) => {
             );
             break;
 
+        case 'html-block':
+            content = (
+                <div
+                    onMouseEnter={() => setIsHovering(true)}
+                    onMouseLeave={() => setIsHovering(false)}
+                    onClick={handleClick}
+                    className={`${wrapperClassName} p-2 bg-yellow-50 border border-yellow-300 rounded text-yellow-700 text-sm`}
+                    style={element.styles?.custom || {}}
+                    dangerouslySetInnerHTML={{ __html: element.content || '<p>Empty HTML Block</p>' }}
+                />
+            );
+            break;
+
         default:
             content = (
                 <div
