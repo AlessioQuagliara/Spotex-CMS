@@ -1,0 +1,40 @@
+/* Stili specifici del builder */
+
+.canvas-element {
+    position: absolute;
+    transition: outline 200ms ease;
+}
+
+.canvas-element.selected {
+    outline: 2px solid #3b82f6;
+    outline-offset: -1px;
+}
+
+.canvas-element.editing {
+    outline: 3px solid #10b981;
+    outline-offset: -1px;
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+}
+
+/* Anelli di selezione e hover per ComponentRenderer */
+.selected-ring {
+    outline: 2px solid #3b82f6 !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+.hover-ring {
+    outline: 2px dashed #9ca3af !important;
+    outline-offset: 2px !important;
+}
+
+        linear-gradient(to right, rgba(203, 213, 225, 0.3) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(203, 213, 225, 0.3) 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+.dark .grid-pattern {
+    background-image: 
+        linear-gradient(to right, rgba(71, 85, 105, 0.3) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(71, 85, 105, 0.3) 1px, transparent 1px);
+}

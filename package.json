@@ -1,0 +1,40 @@
+{
+  "name": "spotex-cms",
+  "version": "1.0.0",
+  "description": "Ho sviluppato **SPOTEX CMS**, una piattaforma e-commerce completa basata su **Laravel 11** e **Filament v3**. L’ho progettata per essere scalabile, sicura e pronta per la produzione, con due gateway di pagamento integrati (Stripe e PayPal) e un pannello di amministrazione intuitivo.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AlessioQuagliara/Spotex-CMS.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/AlessioQuagliara/Spotex-CMS/issues"
+  },
+  "homepage": "https://github.com/AlessioQuagliara/Spotex-CMS#readme",
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.1.2",
+    "laravel-vite-plugin": "^2.1.0",
+    "vite": "^7.3.1"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "immer": "^11.1.3",
+    "lucide-react": "^0.563.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "zustand": "^5.0.10"
+  }
+}

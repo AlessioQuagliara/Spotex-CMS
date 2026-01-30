@@ -17,6 +17,7 @@ Route::get('/', [FrontendPageController::class, 'home'])->name('home');
 Route::get('/prodotti', [ProductController::class, 'index'])->name('products');
 Route::get('/categoria/{category:slug}', [ProductController::class, 'category'])->name('category.show');
 Route::get('/prodotto/{product:slug}', [ProductController::class, 'show'])->name('product.show');
+Route::post('/prodotto/{product:slug}/recensioni', [ProductController::class, 'storeReview'])->name('product.reviews.store');
 
 // Carrello
 Route::post('/carrello/aggiungi', [CartController::class, 'add'])->name('cart.add');
@@ -98,7 +99,12 @@ Route::middleware(['auth', 'verified'])->prefix('/account')->name('customer.')->
 
 // Builder per pagine (protetto da autenticazione admin)
 Route::middleware('auth')->group(function () {
+    // Builder v1 (legacy - Blade + React CDN)
     Route::get('/admin/pages/{page}/builder', [PageBuilderController::class, 'show'])->name('pages.builder');
+    
+    // Builder v2 (Vite + React modularizzato)
+    Route::get('/admin/pages/{page}/builder-v2', [PageBuilderController::class, 'showV2'])->name('pages.builder-v2');
+    
     Route::post('/api/pages/{page}/builder/save', [PageBuilderController::class, 'save'])->name('pages.builder.save');
     Route::get('/api/pages/{page}/builder/export', [PageBuilderController::class, 'export'])->name('pages.builder.export');
 

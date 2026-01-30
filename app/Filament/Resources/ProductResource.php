@@ -8,8 +8,10 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Section;
+use Filament\Forms\Components\View;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables\Columns\TextColumn;
@@ -88,6 +90,19 @@ class ProductResource extends Resource
                     ->addActionLabel('Aggiungi Immagine')
                     ->columnSpanFull(),
             ]),
+
+            Section::make('Contenuto Personalizzato')->schema([
+                Hidden::make('custom_content_html')
+                    ->dehydrated(true)
+                    ->extraAttributes(['data-quill-target' => 'custom_content_html']),
+                View::make('filament.forms.quill-editor')
+                    ->viewData([
+                        'label' => 'Contenuto Personalizzato',
+                        'statePath' => 'data.custom_content_html',
+                        'targetSelector' => 'input[data-quill-target="custom_content_html"]',
+                    ])
+                    ->columnSpanFull(),
+            ])->columnSpanFull(),
         ]);
     }
 

@@ -5,8 +5,12 @@
     <!-- Hero Section -->
     <div class="bg-gray-50 text-slate-900 py-16 border-b border-gray-200">
         <div class="container mx-auto px-4">
-            <h1 class="text-4xl font-bold">Prodotti</h1>
-            <p class="text-lg text-slate-600 mt-2">Catalogo prodotti</p>
+            <h1 class="text-4xl font-bold">
+                {{ isset($selectedCategory) && $selectedCategory ? $selectedCategory->name : 'Prodotti' }}
+            </h1>
+            <p class="text-lg text-slate-600 mt-2">
+                {{ isset($selectedCategory) && $selectedCategory ? 'Prodotti nella categoria' : 'Catalogo prodotti' }}
+            </p>
         </div>
     </div>
 
@@ -16,11 +20,17 @@
         <div class="mb-12">
             <h2 class="text-2xl font-bold text-slate-900 mb-6">Categorie</h2>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <a href="{{ route('products') }}" class="bg-slate-900 text-white font-semibold py-3 px-4 rounded text-center hover:bg-slate-800 transition">
+                @php
+                    $isAllActive = empty($selectedCategory);
+                @endphp
+                <a href="{{ route('products') }}" class="{{ $isAllActive ? 'bg-slate-900 text-white hover:bg-slate-800' : 'bg-white border border-gray-300 text-slate-800 hover:border-slate-500' }} font-semibold py-3 px-4 rounded text-center transition">
                     Tutti
                 </a>
                 @foreach($categories as $category)
-                    <a href="?category={{ $category->slug }}" class="bg-white border border-gray-300 text-slate-800 font-semibold py-3 px-4 rounded text-center hover:border-slate-500 transition">
+                    @php
+                        $isActive = isset($selectedCategory) && $selectedCategory && $selectedCategory->id === $category->id;
+                    @endphp
+                    <a href="{{ route('category.show', $category) }}" class="{{ $isActive ? 'bg-slate-900 text-white hover:bg-slate-800' : 'bg-white border border-gray-300 text-slate-800 hover:border-slate-500' }} font-semibold py-3 px-4 rounded text-center transition">
                         {{ $category->name }}
                     </a>
                 @endforeach

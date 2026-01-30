@@ -41,6 +41,18 @@ Route::group(['prefix' => 'webhooks', 'middleware' => ['api']], function () {
         ->middleware(['throttle:paypal-webhook', 'log-webhook']);
 });
 
+// Page Builder API
+Route::post('/pages/{page}/builder', function (Request $request, $pageId) {
+    $page = \App\Models\Page::findOrFail($pageId);
+    $page->builder_data = $request->input('elements', []);
+    $page->save();
+    
+    return response()->json([
+        'success' => true,
+        'message' => 'Pagina salvata con successo'
+    ]);
+})->middleware(['api']);
+
 // Route per test (opzionale, solo in dev)
 if (app()->environment('local', 'testing')) {
     Route::post('/webhooks/test', function (Request $request) {

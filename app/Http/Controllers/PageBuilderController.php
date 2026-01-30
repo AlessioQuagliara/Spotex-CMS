@@ -29,6 +29,19 @@ class PageBuilderController extends Controller
     }
 
     /**
+     * Mostra il builder v2 (Vite + React modularizzato)
+     */
+    public function showV2(Page $page): View
+    {
+        // Carica dati builder dal database
+        $builderData = $page->builder_data ?? [];
+        
+        return view('builder-v2', [
+            'page' => $page,
+        ]);
+    }
+
+    /**
      * Converte HTML in blocchi separati per ogni sezione o div principale
      */
     private function parseHtmlIntoBlocks(string $html): array

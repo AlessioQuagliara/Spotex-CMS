@@ -1,462 +1,120 @@
-# ⚡ SPOTEX CMS - E-Commerce Platform
+# **SPOTEX CMS**
 
-<div align="center">
+Ho sviluppato **SPOTEX CMS**, una piattaforma e-commerce completa basata su **Laravel 11** e **Filament v3**. L’ho progettata per essere scalabile, sicura e pronta per la produzione, con due gateway di pagamento integrati (Stripe e PayPal) e un pannello di amministrazione intuitivo.
 
-![SPOTEX Logo](https://img.shields.io/badge/SPOTEX-CMS-010f20?style=for-the-badge&logo=lightning)
-![Laravel](https://img.shields.io/badge/Laravel-11-FF2D20?style=flat-square&logo=laravel)
-![Filament](https://img.shields.io/badge/Filament-v3-1A73E8?style=flat-square&logo=php)
-![Stripe](https://img.shields.io/badge/Stripe-Ready-008CDE?style=flat-square&logo=stripe)
-![PayPal](https://img.shields.io/badge/PayPal-Ready-003087?style=flat-square&logo=paypal)
+## **Architettura generale**
 
-**Una piattaforma E-Commerce moderna e scalabile costruita con Laravel 11 e Filament PHP v3**
+- **Backend**: Laravel 11, PHP 8.2+
+- **Admin Panel**: Filament PHP v3
+- **Database**: MySQL/PostgreSQL, con migrazioni già pronte
+- **Frontend**: Blade, Tailwind CSS, Vite
+- **Pagamenti**: Stripe Checkout + PayPal REST API/SDK
+- **Webhook**: Gestione asincrona per aggiornamenti automatici degli ordini
 
-[Documentazione](#-documentazione) • [Installazione](#-installazione) • [Features](#-features) • [API](#-api) • [Deploy](#-deployment)
+## **Funzionalità principali**
 
-</div>
+### 1. **Gestione prodotti e categorie**
+- Prodotti con immagini multiple, prezzi, stock.
+- Categorie gerarchiche (padre-figlio).
+- Carrello utente persistente.
 
----
+### 2. **Checkout e pagamenti**
+- Pagine di checkout responsive.
+- Integrazione con **Stripe** (Checkout Session) e **PayPal** (JavaScript SDK + REST API).
+- Webhook per confermare automaticamente i pagamenti.
+- Storico ordini con stati separati per pagamento e spedizione.
 
-## 🎯 Features
+### 3. **Pannello di amministrazione (Filament)**
+- Dashboard con widget (statistiche ordini, grafico vendite mensili).
+- Gestione completa di prodotti, categorie e ordini.
+- Una volta pagato, un ordine diventa in sola lettura (tranne per lo stato di spedizione).
 
-### 🛍️ E-Commerce Core
-- ✅ Gestione Prodotti con immagini multiple
-- ✅ Categorie gerarchiche (parent-child)
-- ✅ Carrello persistente con sessioni
-- ✅ Sistema Ordini completo
-- ✅ Tracciamento ordini in tempo reale
+### 4. **Sicurezza**
+- Validazione lato server, protezione CSRF.
+- Verifica delle firme dei webhook (Stripe e PayPal).
+- Password hashate, autorizzazioni controllate.
 
-### 💳 Pagamenti
-- ✅ **Stripe Checkout** - Pagamenti carta di credito
-- ✅ **PayPal JavaScript SDK** - Pagamenti PayPal
-- ✅ **Webhook Async** - Aggiornamento ordini asincrono
-- ✅ **REST API Capture** - Cattura pagamenti PayPal
+## **Installazione rapida**
 
-### 👨‍💼 Admin Panel (Filament)
-- ✅ Dashboard con widget statistiche
-- ✅ Grafico vendite mensili
-- ✅ Gestione Prodotti con upload immagini
-- ✅ Gestione Categorie (gerarchiche)
-- ✅ Gestione Ordini (readonly una volta pagati)
-- ✅ Filtri e ricerca avanzata
-- ✅ Tema personalizzabile
+1. **Clona e installa**:
+   ```bash
+   git clone <repo>
+   cd Spotex-CMS
+   composer install
+   npm install
+   cp .env.example .env
+   php artisan key:generate
+   ```
 
-### 🎨 Frontend
-- ✅ Homepage responsive con Tailwind CSS
-- ✅ Elenco prodotti con filtri
-- ✅ Dettagli prodotto
-- ✅ Carrello intuitivo
-- ✅ Checkout multi-step
-- ✅ Pagine successo/cancellazione
+2. **Database**:
+   - Configura le credenziali nel `.env`.
+   - Esegui:
+     ```bash
+     php artisan migrate --seed
+     php artisan storage:link
+     ```
 
-### 🔐 Sicurezza
-- ✅ CSRF Protection
-- ✅ Input Validation
-- ✅ Authorization Check
-- ✅ Webhook Signature Verification
-- ✅ SSL/TLS Ready
+3. **Configura i pagamenti** (Stripe e PayPal):
+   - Ottieni le API key dai rispettivi dashboard.
+   - Aggiungi al `.env`:
+     ```env
+     STRIPE_PUBLIC_KEY=pk_test_...
+     STRIPE_SECRET_KEY=sk_test_...
+     STRIPE_WEBHOOK_SECRET=whsec_...
+     PAYPAL_CLIENT_ID=...
+     PAYPAL_CLIENT_SECRET=...
+     PAYPAL_MODE=sandbox
+     ```
 
----
+4. **Avvia**:
+   ```bash
+   php artisan serve
+   npm run dev
+   ```
 
-## 📁 Struttura Progetto
+**Accesso**:
+- Sito: `http://localhost:8000`
+- Admin: `http://localhost:8000/admin` (crea prima un utente admin via `php artisan tinker`)
 
-```
-Spotex-CMS/
-├── app/
-│   ├── Filament/
-│   │   ├── Resources/         # Admin Resources
-│   │   │   ├── CategoryResource.php
-│   │   │   ├── ProductResource.php
-│   │   │   └── OrderResource.php
-│   │   ├── Pages/
-│   │   └── Widgets/           # Dashboard Widgets
-│   │       ├── MonthlySalesChart.php
-│   │       └── OrderStats.php
-│   ├── Http/Controllers/      # Business Logic
-│   │   ├── PaymentController.php
-│   │   ├── ProductController.php
-│   │   ├── CartController.php
-│   │   └── CheckoutController.php
-│   ├── Models/                # Eloquent Models
-│   │   ├── Product.php
-│   │   ├── Category.php
-│   │   ├── Order.php
-│   │   ├── OrderItem.php
-│   │   └── ProductImage.php
-│   └── Services/              # Business Services
-│       ├── StripeService.php
-│       └── PayPalService.php
-├── database/
-│   ├── migrations/            # Schema
-│   └── seeders/              # Dummy Data
-├── resources/
-│   └── views/
-│       ├── layouts/           # Master templates
-│       ├── products/          # Product pages
-│       ├── cart/              # Cart page
-│       └── checkout/          # Checkout & Success
-├── routes/
-│   └── web.php               # All routes
-├── config/
-│   ├── services.php          # Payment config
-│   └── filament.php          # Admin config
-├── tests/                    # Test suite
-│   └── Feature/PaymentFlowTest.php
-├── INSTALLATION_GUIDE.md     # Setup guide
-├── ARCHITECTURE.md           # Tech decisions
-├── API_REFERENCE.md         # API docs
-├── DEPLOYMENT.md            # Deploy guide
-└── QUICK_REFERENCE.md       # Quick guide
-```
+## **Note importanti per l’uso**
 
----
+### **Amministrazione ordini**
+- Gli ordini in attesa di pagamento (`pending`) sono modificabili.
+- Dopo il pagamento (`paid`), l’ordine diventa in sola lettura, **tranne** per lo stato di spedizione (che puoi aggiornare manualmente).
+- Gli stati di spedizione: `not_shipped`, `shipped`, `delivered`, `returned`.
 
-## 🚀 Installazione Rapida
+### **Webhook**
+- I webhook sono essenziali per aggiornare automaticamente gli ordini dopo il pagamento.
+- In sviluppo, puoi usare `stripe cli` o `ngrok` per testarli.
+- In produzione, configurali nei dashboard di Stripe e PayPal.
 
-### Requisiti
-- PHP 8.2+
-- Laravel 11
-- Composer
-- Node.js
-- MySQL 8.0+ / PostgreSQL
+### **Personalizzazione**
+- Il frontend è in `resources/views/` con layout Tailwind.
+- Il pannello admin può essere esteso con nuove risorse Filament.
+- Ho già predisposto dei `Service` per i pagamenti (`StripeService`, `PayPalService`), quindi se devi aggiungere altri gateway, segui lo stesso pattern.
 
-### Setup (5 minuti)
+## **Deploy in produzione**
+- Imposta `APP_ENV=production` e `APP_DEBUG=false`.
+- Usa HTTPS (obbligatorio per i webhook).
+- Esegui le ottimizzazioni di Laravel:
+  ```bash
+  php artisan config:cache
+  php artisan route:cache
+  php artisan view:cache
+  ```
+- Configura un cron job per la coda (se usi job in coda) e monitora i log.
 
-```bash
-# 1. Clone & Install
-git clone <repo>
-cd Spotex-CMS
-composer install
-npm install
+## **Se qualcosa non funziona**
 
-# 2. Environment
-cp .env.example .env
-php artisan key:generate
-
-# 3. Database
-# Configura DB in .env
-php artisan migrate:fresh --seed
-php artisan storage:link
-
-# 4. Payment Credentials
-# Aggiungi Stripe e PayPal keys in .env
-
-# 5. Run
-php artisan serve
-npm run dev
-
-# 6. Access
-# Frontend: http://localhost:8000
-# Admin: http://localhost:8000/admin
-```
-
-**Documentazione completa:** Vedi [INSTALLATION_GUIDE.md](./INSTALLATION_GUIDE.md)
+1. **Controlla i log**: `storage/logs/laravel.log`
+2. **Verifica le credenziali dei pagamenti** nel `.env`.
+3. **Assicurati che i webhook siano impostati correttamente** nei dashboard di Stripe/PayPal.
+4. **Prova a cancellare la cache**: `php artisan optimize:clear`
 
 ---
 
-## 💡 Architettura
+**In sintesi**: SPOTEX CMS è un sistema e-commerce solido, con tutti i componenti principali già implementati. Basta configurarlo, aggiungere i propri prodotti e può partire. L’ho strutturato in modo che sia facile da mantenere e estendere.
 
-### Database Schema
-```
-Categories (hierarchical)
-    └─ Products
-        └─ ProductImages
-    
-Orders
-    └─ OrderItems (pivot tra orders e products, con snapshot prezzo)
-    
-Users (1:many) Orders
-```
+Se hai bisogno di aggiungere funzionalità (es. sconti, newsletter, gestione magazzino), il codice è organizzato per essere facilmente modificabile.
 
-### Payment Flow
-```
-1. User → Checkout
-2. Frontend → Initialize Payment (Stripe/PayPal)
-3. User → Payment Gateway
-4. Gateway → Webhook
-5. Backend → Update Order Status
-6. User → Success Page
-```
-
-### Service Architecture
-```
-Controllers
-    ↓
-Services (StripeService, PayPalService)
-    ↓
-External APIs (Stripe, PayPal)
-    ↓
-Database (Orders, OrderItems)
-```
-
-Vedi [ARCHITECTURE.md](./ARCHITECTURE.md) per dettagli
-
----
-
-## 🔗 API Endpoints
-
-### Products (Public)
-```
-GET    /              - Homepage
-GET    /prodotti      - Product listing
-GET    /prodotto/{slug} - Product details
-```
-
-### Cart (Protected)
-```
-POST   /carrello/aggiungi    - Add item
-GET    /carrello             - View cart
-POST   /carrello/aggiorna    - Update quantity
-POST   /carrello/rimuovi     - Remove item
-```
-
-### Payment (Protected)
-```
-POST   /pagamento/stripe/checkout    - Stripe session
-POST   /pagamento/paypal/checkout    - PayPal order
-POST   /pagamento/paypal/capture     - Capture payment
-GET    /checkout/success/{order}    - Success page
-GET    /checkout/cancel/{order}     - Cancel page
-```
-
-### Webhooks
-```
-POST   /api/webhooks/stripe    - Stripe events
-POST   /api/webhooks/paypal    - PayPal events
-```
-
-Vedi [API_REFERENCE.md](./API_REFERENCE.md) per complete documentation
-
----
-
-## 👨‍💼 Admin Panel Features
-
-### Dashboard
-- Statistiche ordini (totali, in sospeso, completati)
-- Grafico vendite mensili
-- Widget customizzabili
-
-### Prodotti
-- CRUD completo con validazione
-- Upload immagini multiple
-- Gestione categoria
-- Toggle attivazione
-- Filtri e ricerca
-
-### Categorie
-- Gerarchia parent-child
-- Ordinamento
-- Bulk operations
-
-### Ordini
-- Visualizzazione dettagli
-- Stato pagamento (pending → paid → failed → refunded)
-- Stato spedizione (not_shipped → shipped → delivered → returned)
-- Campi readonly una volta pagati (tranne shipping status)
-- Storico transazioni
-
----
-
-## 🔐 Security Features
-
-- ✅ **CSRF Protection**: Token validation su tutti i form
-- ✅ **Input Validation**: Validazione richieste lato server
-- ✅ **Authorization**: Controllo accesso risorse
-- ✅ **Webhook Verification**: Firma validation Stripe/PayPal
-- ✅ **Webhook Idempotency**: Deduplica eventi Stripe/PayPal con DB unique
-- ✅ **Password Hashing**: bcrypt con Laravel
-- ✅ **HTTPS Ready**: Configurazione SSL/TLS
-- ✅ **Rate Limiting**: Protezione brute-force
-- ✅ **SQL Injection Protection**: Eloquent ORM
-
----
-
-## 📊 Database
-
-### Tables
-- `categories` - Categorie (con parent_id per gerarchie)
-- `products` - Prodotti
-- `product_images` - Immagini prodotti
-- `orders` - Ordini (payment_status + shipping_status separati)
-- `order_items` - Articoli ordine (prezzo storico)
-- `users` - Utenti
-
-### Relationships
-```
-User 1:N Orders
-Order 1:N OrderItems
-Product 1:N OrderItems
-Category 1:N Products
-Product 1:N ProductImages
-```
-
----
-
-## 🧪 Testing
-
-```bash
-# Run test suite
-php artisan test
-
-# Run specific test
-php artisan test tests/Feature/PaymentFlowTest.php
-
-# Coverage
-php artisan test --coverage
-```
-
-Test Coverage:
-- ✅ Payment flows (Stripe/PayPal)
-- ✅ Order creation
-- ✅ Cart operations
-- ✅ Authorization
-- ✅ Webhook processing
-
----
-
-## 🚀 Deployment
-
-### Supporta
-- ✅ VPS Linux (Apache/Nginx)
-- ✅ Cloud Providers (AWS, DigitalOcean, Heroku)
-- ✅ Docker-ready
-- ✅ CI/CD ready (GitHub Actions)
-
-### Quick Deploy Checklist
-```bash
-# 1. Prepara server
-ssh user@server.com
-
-# 2. Clone & install
-git clone <repo> /var/www/spotex-cms
-cd /var/www/spotex-cms
-composer install --optimize-autoloader --no-dev
-npm run build
-
-# 3. Configure
-cp .env.example .env
-php artisan key:generate
-
-# 4. Database & migrations
-php artisan migrate --force
-
-# 5. Optimize
-php artisan optimize
-php artisan route:cache
-
-# 6. Web server (nginx/apache)
-# Vedi DEPLOYMENT.md
-```
-
-**Documentazione completa:** [DEPLOYMENT.md](./DEPLOYMENT.md)
-
----
-
-## 📚 Documentazione
-
-| Documento | Contenuto |
-|-----------|-----------|
-| [INSTALLATION_GUIDE.md](./INSTALLATION_GUIDE.md) | Setup e configurazione |
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | Decisioni architetturali |
-| [API_REFERENCE.md](./API_REFERENCE.md) | Endpoint e payloads |
-| [DEPLOYMENT.md](./DEPLOYMENT.md) | Deploy production |
-| [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) | Quick guide |
-
----
-
-## 🛠️ Tech Stack
-
-### Backend
-- **Laravel 11** - Web framework
-- **Filament v3** - Admin panel
-- **Eloquent ORM** - Database
-- **Laravel Migrations** - Schema versioning
-
-### Frontend
-- **Blade Templates** - Server-side rendering
-- **Tailwind CSS** - Styling
-- **Vite** - Asset bundling
-- **Alpine.js** (optional) - Interactivity
-
-### Payments
-- **Stripe API** - Carte di credito
-- **PayPal SDK** - Pagamenti PayPal
-- **Webhook Management** - Notifiche asincrone
-
-### DevOps
-- **Docker** (optional)
-- **GitHub Actions** (CI/CD)
-- **MySQL** - Database
-- **Redis** (optional - caching)
-
----
-
-## 🎯 Roadmap
-
-### v1.1 (Q1 2026)
-- [ ] Email notifications (order confirmation, shipping)
-- [ ] Refunds management
-- [ ] Advanced inventory management
-- [ ] Discounts & coupons
-
-### v1.2 (Q2 2026)
-- [ ] Product reviews & ratings
-- [ ] Wishlist feature
-- [ ] User account dashboard
-- [ ] Multiple languages
-
-### v2.0 (Q3 2026)
-- [ ] GraphQL API
-- [ ] Mobile app (React Native)
-- [ ] Advanced analytics
-- [ ] Shipping integration
-- [ ] Subscription products
-
----
-
-## 🤝 Contribuire
-
-1. Fork il repository
-2. Crea feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add AmazingFeature'`)
-4. Push al branch (`git push origin feature/AmazingFeature`)
-5. Apri Pull Request
-
----
-
-## 📞 Support
-
-- 📧 Email: support@spotex.com
-- 💬 Issues: GitHub Issues
-- 📚 Docs: Vedi cartella `/docs`
-- 🐛 Bugs: Report su GitHub
-
----
-
-## 📄 Licenza
-
-Questo progetto è licensato sotto MIT License - vedi [LICENSE](./LICENSE) per dettagli
-
----
-
-## 👥 Autore
-
-**Spotex SRL** - Senior Full Stack Developer
-- Laravel Specialist
-- Filament Expert
-- Payment Integration Expert
-
----
-
-<div align="center">
-
-**⚡ Built with ⚡ for Performance and Maintainability**
-
-[Torna su](#-spotex-cms---e-commerce-platform)
-
-</div>
-
----
-
-**Version:** 1.0.0
-**Status:** Production Ready ✅
-**Last Updated:** Gennaio 2026
+*Ultimo aggiornamento: Gennaio 2026*
