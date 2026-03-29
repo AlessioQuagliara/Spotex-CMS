@@ -27,9 +27,14 @@
          data-page-id="<?php echo e($page->id); ?>" 
          data-page-title="<?php echo e($page->title); ?>"
          data-page-slug="<?php echo e($page->slug); ?>"
+            data-schema-version="<?php echo e($page->builder_schema_version ?? 'craft-v1'); ?>"
+            data-initial-document="<?php echo e(json_encode($page->builder_document ?? [])); ?>"
          data-initial-elements="<?php echo e(json_encode($page->builder_data ?? [])); ?>"
-         data-initial-traits="<?php echo e(json_encode($page->builder_traits ?? [])); ?>"
-         data-initial-classes="<?php echo e(json_encode($page->builder_classes ?? [])); ?>"
+            data-initial-modules="<?php echo e(json_encode($page->builder_modules ?? [])); ?>"
+            data-initial-meta="<?php echo e(json_encode($page->builder_meta ?? [])); ?>"
+            data-preview-catalog="<?php echo e(json_encode($previewCatalog ?? [])); ?>"
+            data-initial-traits="<?php echo e(json_encode([])); ?>"
+            data-initial-classes="<?php echo e(json_encode([])); ?>"
     ></div>
 
     

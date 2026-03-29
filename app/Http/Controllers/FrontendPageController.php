@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Page;
 use App\Http\Controllers\ProductController;
+use App\Models\Page;
+use App\Services\Builder\BuilderDocumentRenderer;
 use Illuminate\Http\Request;
 
 class FrontendPageController extends Controller
 {
+    public function __construct(private readonly BuilderDocumentRenderer $renderer)
+    {
+    }
     /**
      * Mostra la homepage dinamica se presente
      */
@@ -21,6 +25,7 @@ class FrontendPageController extends Controller
         if ($homePage && $homePage->is_published) {
             return view('pages.show', [
                 'page' => $homePage,
+                'renderedPage' => $this->renderer->renderPage($homePage),
             ]);
         }
 
@@ -38,6 +43,7 @@ class FrontendPageController extends Controller
 
         return view('pages.show', [
             'page' => $page,
+            'renderedPage' => $this->renderer->renderPage($page),
         ]);
     }
 }

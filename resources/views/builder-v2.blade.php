@@ -27,9 +27,14 @@
          data-page-id="{{ $page->id }}" 
          data-page-title="{{ $page->title }}"
          data-page-slug="{{ $page->slug }}"
+            data-schema-version="{{ $page->builder_schema_version ?? 'craft-v1' }}"
+            data-initial-document="{{ json_encode($page->builder_document ?? []) }}"
          data-initial-elements="{{ json_encode($page->builder_data ?? []) }}"
-         data-initial-traits="{{ json_encode($page->builder_traits ?? []) }}"
-         data-initial-classes="{{ json_encode($page->builder_classes ?? []) }}"
+            data-initial-modules="{{ json_encode($page->builder_modules ?? []) }}"
+            data-initial-meta="{{ json_encode($page->builder_meta ?? []) }}"
+            data-preview-catalog="{{ json_encode($previewCatalog ?? []) }}"
+            data-initial-traits="{{ json_encode([]) }}"
+            data-initial-classes="{{ json_encode([]) }}"
     ></div>
 
     {{-- Vite React App --}}

@@ -6,7 +6,10 @@ import { Save, RotateCcw, RotateCw, ZoomIn, ZoomOut, Monitor, Tablet, Smartphone
 export default function TopBar({ pageTitle, pageId, pageSlug }) {
     const { 
         elements, 
-        traitValues, 
+        schemaVersion,
+        builderDocument,
+        builderModules,
+        builderMeta,
         customClasses,
         zoom, 
         setZoom, 
@@ -34,14 +37,18 @@ export default function TopBar({ pageTitle, pageId, pageSlug }) {
 
             // ✅ Payload completo per il backend
             const payload = {
+                schema_version: schemaVersion || 'craft-v1',
+                document: builderDocument,
                 elements,           // JSON per riaprire il builder
+                modules: builderModules,
+                meta: builderMeta,
                 html: htmlContent,   // HTML pulito per il frontend pubblico
                 css: cssContent,     // CSS custom
             };
             
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
 
-            const response = await fetch(`/api/pages/${pageSlug}/builder/save`, {
+            const response = await fetch(`/api/pages/${pageSlug}/builder/craft/save`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

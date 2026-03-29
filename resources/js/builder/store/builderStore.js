@@ -1,122 +1,69 @@
 import { create } from 'zustand';
 import { produce } from 'immer';
+import { appendHistory } from './helpers/history';
+import { generateElementId } from './helpers/id';
+import {
+    duplicateElementById,
+    findElementById,
+    removeElementById,
+} from './helpers/treeOperations';
 
-const MAX_HISTORY = 20;
+const HISTORY_TRIGGER_KEYS = ['x', 'y', 'width', 'height'];
 
-// Helper per generare ID univoci
-const generateId = () => `el_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+const createElement = (type) => ({
+    id: generateElementId(),
+    type,
+    content: {},
+    styles: {},
+    children: [],
+    x: 0,
+    y: 0,
+    width: 200,
+    height: 100,
+});
 
-// Funzione ricorsiva per trovare elementi per ID (nel futuro userebbe flatMap o simile)
-const findElementById = (elements, id) => {
-    for (const el of elements) {
-        if (el.id === id) return el;
-        if (el.children?.length) {
-            const found = findElementById(el.children, id);
-            if (found) return found;
-        }
-    }
-    return null;
-};
-
-// Funzione ricorsiva per eliminare elemento
-const removeElementById = (elements, id) => {
-    return elements
-        .filter(el => el.id !== id)
-        .map(el => ({
-            ...el,
-            children: el.children ? removeElementById(el.children, id) : []
-        }));
-};
-
-// Funzione ricorsiva per duplicare elemento
-const duplicateElementById = (elements, id, parentId = null) => {
-    const elementToClone = findElementById(elements, id);
-    if (!elementToClone) return elements;
-
-    const cloned = {
-        ...elementToClone,
-        id: generateId(),
-        children: elementToClone.children?.map(child => ({
-            ...child,
-            id: generateId()
-        })) || []
-    };
-
-    if (!parentId) {
-        // Root level
-        return [...elements, cloned];
-    } else {
-        // Find parent and add as child
-        return elements.map(el => {
-            if (el.id === parentId) {
-                return { ...el, children: [...(el.children || []), cloned] };
-            }
-            return {
-                ...el,
-                children: el.children ? duplicateElementById(el.children, id, parentId) : []
-            };
-        });
-    }
-};
+const hasHistoryTriggerUpdate = (updates) =>
+    HISTORY_TRIGGER_KEYS.some((key) => Object.prototype.hasOwnProperty.call(updates, key));
 
 export const useBuilderStore = create((set, get) => ({
-    // ==================== STATE ====================
     elements: [],
     selectedId: null,
     editingElementId: null,
-    
-    // History management
     history: [],
     historyIndex: -1,
-    
-    // UI State
     zoom: 50,
     viewMode: 'desktop',
     darkMode: false,
     isSaving: false,
-    
-    // Trait & Style data
     traitValues: {},
     customClasses: {},
+    schemaVersion: 'craft-v1',
+    builderDocument: {},
+    builderModules: [],
+    builderMeta: {},
 
-    // ==================== ACTIONS ====================
-
-    /**
-     * Carica dati iniziali
-     */
-    initialize: (elements, traitValues = {}, customClasses = {}) => {
+    initialize: (elements, traitValues = {}, customClasses = {}, builderPayload = {}) => {
         set({
             elements,
             traitValues,
             customClasses,
+            schemaVersion: builderPayload.schemaVersion || 'craft-v1',
+            builderDocument: builderPayload.document || {},
+            builderModules: builderPayload.modules || [],
+            builderMeta: builderPayload.meta || {},
             history: [elements],
             historyIndex: 0,
         });
     },
 
-    /**
-     * Aggiunge un elemento al canvas
-     */
     addElement: (type, parentId = null) => {
-        const newElement = {
-            id: generateId(),
-            type,
-            content: {},
-            styles: {},
-            children: [],
-            x: 0,
-            y: 0,
-            width: 200,
-            height: 100,
-        };
+        const newElement = createElement(type);
 
         set((state) => {
-            const newElements = produce(state.elements, draft => {
+            const newElements = produce(state.elements, (draft) => {
                 if (!parentId) {
-                    // Aggiungi a root
                     draft.push(newElement);
                 } else {
-                    // Aggiungi come child
                     const parent = findElementById(draft, parentId);
                     if (parent) {
                         parent.children = parent.children || [];
@@ -125,65 +72,32 @@ export const useBuilderStore = create((set, get) => ({
                 }
             });
 
-            // Salva in history
-            const newHistory = state.history.slice(0, state.historyIndex + 1);
-            newHistory.push(newElements);
-            if (newHistory.length > MAX_HISTORY) newHistory.shift();
-
             return {
                 elements: newElements,
-                history: newHistory,
-                historyIndex: newHistory.length - 1,
+                ...appendHistory(state.history, state.historyIndex, newElements),
                 selectedId: newElement.id,
             };
         });
     },
 
-    /**
-     * Seleziona un elemento
-     */
     selectElement: (id) => set({ selectedId: id }),
-
-    /**
-     * Deseleziona
-     */
     deselectElement: () => set({ selectedId: null, editingElementId: null }),
-
-    /**
-     * Inizia a modificare un elemento
-     */
     startEditingElement: (id) => set({ editingElementId: id }),
-
-    /**
-     * Finisce di modificare
-     */
     stopEditingElement: () => set({ editingElementId: null }),
 
-    /**
-     * Aggiorna un elemento (positione, stili, contenuto, ecc)
-     */
     updateElement: (id, updates) => {
         set((state) => {
-            const newElements = produce(state.elements, draft => {
+            const newElements = produce(state.elements, (draft) => {
                 const el = findElementById(draft, id);
                 if (el) {
                     Object.assign(el, updates);
                 }
             });
 
-            // Salva in history SOLO se è una modifica significativa (drag, resize, ecc)
-            // Per velocità, NON salviamo ogni keystroke
-            const shouldSaveHistory = updates.x || updates.y || updates.width || updates.height;
-            
-            if (shouldSaveHistory) {
-                const newHistory = state.history.slice(0, state.historyIndex + 1);
-                newHistory.push(newElements);
-                if (newHistory.length > MAX_HISTORY) newHistory.shift();
-
+            if (hasHistoryTriggerUpdate(updates)) {
                 return {
                     elements: newElements,
-                    history: newHistory,
-                    historyIndex: newHistory.length - 1,
+                    ...appendHistory(state.history, state.historyIndex, newElements),
                 };
             }
 
@@ -191,9 +105,6 @@ export const useBuilderStore = create((set, get) => ({
         });
     },
 
-    /**
-     * Aggiorna il contenuto di un elemento (testo, ecc)
-     */
     updateElementContent: (id, content) => {
         set(produce((state) => {
             const el = findElementById(state.elements, id);
@@ -203,49 +114,29 @@ export const useBuilderStore = create((set, get) => ({
         }));
     },
 
-    /**
-     * Elimina un elemento
-     */
     deleteElement: (id) => {
         set((state) => {
             const newElements = removeElementById(state.elements, id);
-            
-            // Salva in history
-            const newHistory = state.history.slice(0, state.historyIndex + 1);
-            newHistory.push(newElements);
-            if (newHistory.length > MAX_HISTORY) newHistory.shift();
 
             return {
                 elements: newElements,
-                history: newHistory,
-                historyIndex: newHistory.length - 1,
+                ...appendHistory(state.history, state.historyIndex, newElements),
                 selectedId: null,
             };
         });
     },
 
-    /**
-     * Duplica un elemento
-     */
     duplicateElement: (id, parentId = null) => {
         set((state) => {
             const newElements = duplicateElementById(state.elements, id, parentId);
-            
-            const newHistory = state.history.slice(0, state.historyIndex + 1);
-            newHistory.push(newElements);
-            if (newHistory.length > MAX_HISTORY) newHistory.shift();
 
             return {
                 elements: newElements,
-                history: newHistory,
-                historyIndex: newHistory.length - 1,
+                ...appendHistory(state.history, state.historyIndex, newElements),
             };
         });
     },
 
-    /**
-     * Undo
-     */
     undo: () => {
         set((state) => {
             if (state.historyIndex > 0) {
@@ -260,9 +151,6 @@ export const useBuilderStore = create((set, get) => ({
         });
     },
 
-    /**
-     * Redo
-     */
     redo: () => {
         set((state) => {
             if (state.historyIndex < state.history.length - 1) {
@@ -277,9 +165,6 @@ export const useBuilderStore = create((set, get) => ({
         });
     },
 
-    /**
-     * Aggiorna un valore di trait per un elemento
-     */
     setTraitValue: (elementId, traitName, value) => {
         set(produce((state) => {
             if (!state.traitValues[elementId]) {
@@ -289,31 +174,23 @@ export const useBuilderStore = create((set, get) => ({
         }));
     },
 
-    /**
-     * Aggiorna una classe CSS
-     */
     setCustomClass: (className, classData) => {
         set(produce((state) => {
             state.customClasses[className] = classData;
         }));
     },
 
-    /**
-     * Elimina una classe CSS
-     */
     deleteCustomClass: (className) => {
         set(produce((state) => {
             delete state.customClasses[className];
         }));
     },
 
-    // UI Setters
     setZoom: (zoom) => set({ zoom: Math.max(25, Math.min(200, zoom)) }),
     setViewMode: (mode) => set({ viewMode: mode }),
     setDarkMode: (dark) => set({ darkMode: dark }),
     setIsSaving: (saving) => set({ isSaving: saving }),
 
-    // Getter per history checks
     canUndo: () => {
         const state = get();
         return state.historyIndex > 0;

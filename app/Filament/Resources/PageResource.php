@@ -53,12 +53,14 @@ class PageResource extends Resource
                         Forms\Components\Actions\Action::make('builder')
                             ->label('Apri Builder')
                             ->icon('heroicon-o-pencil-square')
-                            ->url(fn (Page $record) => route('pages.builder', $record))
+                            ->visible(fn (?Page $record): bool => $record !== null)
+                            ->url(fn (?Page $record): ?string => $record ? route('pages.builder-v2', $record) : null)
                             ->openUrlInNewTab(),
                         Forms\Components\Actions\Action::make('code')
                             ->label('Modifica Codice')
                             ->icon('heroicon-o-code-bracket')
-                            ->url(fn (Page $record) => route('pages.code', $record))
+                            ->visible(fn (?Page $record): bool => $record !== null)
+                            ->url(fn (?Page $record): ?string => $record ? route('pages.code', $record) : null)
                             ->openUrlInNewTab(),
                     ])->fullWidth(),
                 ]),
@@ -99,7 +101,7 @@ class PageResource extends Resource
                 Tables\Actions\Action::make('builder')
                     ->label('Apri Builder')
                     ->icon('heroicon-o-pencil-square')
-                    ->url(fn (Page $record) => route('pages.builder', $record))
+                    ->url(fn (Page $record) => route('pages.builder-v2', $record))
                     ->openUrlInNewTab(),
                 Tables\Actions\DeleteAction::make(),
             ])

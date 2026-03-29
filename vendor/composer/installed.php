@@ -3,7 +3,7 @@
         'name' => 'spotex/spotex-cms',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => 'd4447f8ef3db562e8af416f58b32de3fb3df3be4',
+        'reference' => '209daaa59b9ae40155526831b62b9be029fa4318',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -55,6 +55,12 @@
             'aliases' => array(),
             'dev_requirement' => false,
         ),
+        'cordoval/hamcrest-php' => array(
+            'dev_requirement' => true,
+            'replaced' => array(
+                0 => '*',
+            ),
+        ),
         'danharrin/date-format-converter' => array(
             'pretty_version' => 'v0.3.1',
             'version' => '0.3.1.0',
@@ -72,6 +78,12 @@
             'install_path' => __DIR__ . '/../danharrin/livewire-rate-limiting',
             'aliases' => array(),
             'dev_requirement' => false,
+        ),
+        'davedevelopment/hamcrest-php' => array(
+            'dev_requirement' => true,
+            'replaced' => array(
+                0 => '*',
+            ),
         ),
         'dflydev/dot-access-data' => array(
             'pretty_version' => 'v3.0.3',
@@ -135,6 +147,15 @@
             'install_path' => __DIR__ . '/../egulias/email-validator',
             'aliases' => array(),
             'dev_requirement' => false,
+        ),
+        'fakerphp/faker' => array(
+            'pretty_version' => 'v1.24.1',
+            'version' => '1.24.1.0',
+            'reference' => 'e0ee18eb1e6dc3cda3ce9fd97e5a0689a88a64b5',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../fakerphp/faker',
+            'aliases' => array(),
+            'dev_requirement' => true,
         ),
         'filament/actions' => array(
             'pretty_version' => 'v3.3.47',
@@ -261,6 +282,15 @@
             'install_path' => __DIR__ . '/../guzzlehttp/uri-template',
             'aliases' => array(),
             'dev_requirement' => false,
+        ),
+        'hamcrest/hamcrest-php' => array(
+            'pretty_version' => 'v2.1.1',
+            'version' => '2.1.1.0',
+            'reference' => 'f8b1c0173b22fa6ec77a81fe63e5b01eba7e6487',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../hamcrest/hamcrest-php',
+            'aliases' => array(),
+            'dev_requirement' => true,
         ),
         'illuminate/auth' => array(
             'dev_requirement' => false,
@@ -475,6 +505,12 @@
             'aliases' => array(),
             'dev_requirement' => false,
         ),
+        'kodova/hamcrest-php' => array(
+            'dev_requirement' => true,
+            'replaced' => array(
+                0 => '*',
+            ),
+        ),
         'laravel/framework' => array(
             'pretty_version' => 'v11.48.0',
             'version' => '11.48.0.0',
@@ -591,6 +627,15 @@
             'install_path' => __DIR__ . '/../masterminds/html5',
             'aliases' => array(),
             'dev_requirement' => false,
+        ),
+        'mockery/mockery' => array(
+            'pretty_version' => '1.6.12',
+            'version' => '1.6.12.0',
+            'reference' => '1f4efdd7d3beafe9807b08156dfcb176d18f1699',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../mockery/mockery',
+            'aliases' => array(),
+            'dev_requirement' => true,
         ),
         'monolog/monolog' => array(
             'pretty_version' => '3.10.0',
@@ -1094,7 +1139,7 @@
         'spotex/spotex-cms' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => 'd4447f8ef3db562e8af416f58b32de3fb3df3be4',
+            'reference' => '209daaa59b9ae40155526831b62b9be029fa4318',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

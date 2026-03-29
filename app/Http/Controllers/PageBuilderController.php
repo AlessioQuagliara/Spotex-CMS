@@ -2,13 +2,23 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\SavePageBuilderRequest;
 use App\Models\Page;
+use App\Services\Builder\BuilderContentSanitizer;
+use App\Services\Builder\BuilderDocumentRenderer;
+use App\Services\Builder\BuilderPreviewCatalog;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class PageBuilderController extends Controller
 {
+    public function __construct(
+        private readonly BuilderContentSanitizer $sanitizer,
+        private readonly BuilderDocumentRenderer $renderer,
+        private readonly BuilderPreviewCatalog $previewCatalog,
+    ) {
+    }
+
     /**
      * Mostra il builder per una pagina
      */
@@ -33,11 +43,9 @@ class PageBuilderController extends Controller
      */
     public function showV2(Page $page): View
     {
-        // Carica dati builder dal database
-        $builderData = $page->builder_data ?? [];
-        
         return view('builder-v2', [
             'page' => $page,
+            'previewCatalog' => $this->previewCatalog->build(),
         ]);
     }
 
@@ -91,25 +99,32 @@ class PageBuilderController extends Controller
     /**
      * Salva i dati del builder
      */
-    public function save(Request $request, Page $page): JsonResponse
+    public function save(SavePageBuilderRequest $request, Page $page): JsonResponse
     {
-        $validated = $request->validate([
-            'elements' => 'required|array',
-            'html' => 'nullable|string',
-            'css' => 'nullable|string',
-            'js' => 'nullable|string',
-        ]);
+        $validated = $request->validated();
+
+        $document = is_array($validated['document'] ?? null)
+            ? $validated['document']
+            : $this->convertLegacyElementsToDocument($validated['elements'] ?? []);
+
+        $schemaVersion = $validated['schema_version'] ?? 'craft-v1';
+        $rendered = $this->renderer->renderDocument($document);
 
         $page->update([
-            'builder_data' => $validated['elements'],
-            'html_content' => $validated['html'] ?? null,
-            'css_content' => $validated['css'] ?? null,
-            'js_content' => $validated['js'] ?? null,
+            'builder_schema_version' => $schemaVersion,
+            'builder_document' => $document,
+            'builder_data' => $validated['elements'] ?? $page->builder_data,
+            'builder_modules' => $validated['modules'] ?? $page->builder_modules,
+            'builder_meta' => $validated['meta'] ?? $page->builder_meta,
+            'html_content' => $this->sanitizer->sanitizeHtml($rendered['html'] ?? null),
+            'css_content' => $this->sanitizer->sanitizeCss($validated['css'] ?? ($rendered['css'] ?? null)),
+            'js_content' => $this->sanitizer->sanitizeJs($validated['js'] ?? ($rendered['js'] ?? null)),
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Pagina salvata con successo',
+            'schema_version' => $page->builder_schema_version,
             'page' => $page,
         ]);
     }
@@ -119,6 +134,56 @@ class PageBuilderController extends Controller
      */
     public function export(Page $page): JsonResponse
     {
-        return response()->json($page->builder_data ?? []);
+        return response()->json([
+            'schema_version' => $page->builder_schema_version ?? 'craft-v1',
+            'document' => $page->builder_document ?? $this->convertLegacyElementsToDocument($page->builder_data ?? []),
+            'elements' => $page->builder_data ?? [],
+            'modules' => $page->builder_modules ?? [],
+            'meta' => $page->builder_meta ?? [],
+        ]);
+    }
+
+    private function convertLegacyElementsToDocument(array $elements): array
+    {
+        $document = [
+            'ROOT' => [
+                'type' => ['resolvedName' => 'Canvas'],
+                'isCanvas' => true,
+                'props' => [],
+                'displayName' => 'Root',
+                'custom' => [],
+                'hidden' => false,
+                'nodes' => [],
+                'linkedNodes' => (object) [],
+            ],
+        ];
+
+        foreach ($elements as $element) {
+            if (!is_array($element)) {
+                continue;
+            }
+
+            $id = (string) ($element['id'] ?? uniqid('node_', true));
+            $document[$id] = [
+                'type' => ['resolvedName' => (string) ($element['type'] ?? 'LegacyBlock')],
+                'isCanvas' => false,
+                'props' => [
+                    'content' => $element['content'] ?? null,
+                    'styles' => is_array($element['styles'] ?? null) ? $element['styles'] : [],
+                    'x' => $element['x'] ?? 0,
+                    'y' => $element['y'] ?? 0,
+                    'width' => $element['width'] ?? null,
+                    'height' => $element['height'] ?? null,
+                ],
+                'displayName' => ucfirst((string) ($element['type'] ?? 'LegacyBlock')),
+                'custom' => [],
+                'hidden' => false,
+                'nodes' => [],
+                'linkedNodes' => (object) [],
+            ];
+            $document['ROOT']['nodes'][] = $id;
+        }
+
+        return $document;
     }
 }

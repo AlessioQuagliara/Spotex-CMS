@@ -29,16 +29,50 @@ $stripeService->handlePaymentSuccess($sessionId);
 ```
 
 #### PayPalService
-- Crea ordini in PayPal
-- Cattura il pagamento via API REST
-- Verifica i webhook PayPal
-- Converte gli indirizzi nel formato richiesto da PayPal
+- Orchestratore del flusso PayPal (entry point unico)
+- Delega a componenti specializzati per ridurre accoppiamento
+
+Componenti PayPal modulari:
+- `PayPalApiClient`: OAuth + chiamate HTTP autenticate
+- `PayPalOrderPayloadBuilder`: costruzione payload ordine Checkout
+- `PayPalWebhookVerifier`: validazione firma webhook lato API PayPal
+- `PayPalCaptureEventParser`: parsing evento `PAYMENT.CAPTURE.COMPLETED`
+- `PayPalAddressFormatter`: normalizzazione indirizzi ordine/webhook
 
 ```php
 // Utilizzo
 $paypalOrder = $paypalService->createOrder($order);
-$paypalService->handlePaymentCapture($orderId, $localOrderId);
+$paypalService->handlePaymentCapture($webhookPayload);
 ```
+
+#### WebhookEventManager
+- Gestione idempotenza webhook cross-provider
+- Transizioni stato `pending -> processing -> completed/failed`
+- Riduce duplicazione tra Stripe e PayPal webhook handlers
+
+---
+
+## 🧩 REFACTOR MAP (DRY + KISS + SOLID)
+
+### Refactor già applicati
+- `resources/js/builder/store/builderStore.js`
+: estratti helper separati (`helpers/id.js`, `helpers/treeOperations.js`, `helpers/history.js`) per ID, operazioni ricorsive e storico.
+- `app/Services/PayPalService.php`
+: trasformato in orchestratore snello con responsabilità delegate a servizi dedicati.
+- `app/Http/Controllers/PaymentController.php`
+: ridotta duplicazione webhook via `WebhookEventManager` e risposte JSON uniformi.
+
+### Moduli ancora lunghi (priorità prossima iterazione)
+- `resources/views/builder/index.blade.php`
+- `resources/views/checkout/index.blade.php`
+- `resources/views/pages/code-editor.blade.php`
+- `app/Filament/Resources/OrderResource.php`
+- `app/Http/Controllers/CustomerDashboardController.php`
+
+Direzione consigliata:
+- estrarre partial Blade per sezione UI ripetuta;
+- spostare query/trasformazioni in servizi o query objects;
+- introdurre actions dedicate per casi d’uso complessi (es. checkout/customer dashboard).
 
 ---
 

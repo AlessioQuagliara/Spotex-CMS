@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Order;
-use App\Models\WebhookEvent;
-use App\Jobs\ProcessStripeWebhook;
 use App\Jobs\ProcessPayPalWebhook;
-use App\Services\StripeService;
+use App\Jobs\ProcessStripeWebhook;
+use App\Models\Order;
 use App\Services\PayPalService;
+use App\Services\StripeService;
+use App\Services\Webhooks\WebhookEventManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Stripe\Webhook;
@@ -16,7 +16,8 @@ class PaymentController extends Controller
 {
     public function __construct(
         protected StripeService $stripeService,
-        protected PayPalService $paypalService
+        protected PayPalService $paypalService,
+        protected WebhookEventManager $webhookEventManager
     ) {}
 
     /**
@@ -26,18 +27,14 @@ class PaymentController extends Controller
     {
         try {
             $sessionId = $this->stripeService->createCheckoutSession($order);
-            
-            return response()->json([
-                'success' => true,
+
+            return $this->successResponse([
                 'sessionId' => $sessionId,
             ]);
         } catch (\Exception $e) {
             Log::error('Stripe checkout error: ' . $e->getMessage());
-            
-            return response()->json([
-                'success' => false,
-                'message' => 'Errore nell\'inizializzazione del pagamento',
-            ], 500);
+
+            return $this->errorResponse('Errore nell\'inizializzazione del pagamento');
         }
     }
 
@@ -49,7 +46,7 @@ class PaymentController extends Controller
     public function stripeWebhook(Request $request)
     {
         $requestBody = $request->getContent();
-        
+
         try {
             $event = Webhook::constructEvent(
                 $requestBody,
@@ -58,43 +55,33 @@ class PaymentController extends Controller
             );
 
             $eventId = $event->id;
-
-            // Controlla se l'evento è già stato processato (idempotenza)
-            if (WebhookEvent::alreadyProcessed('stripe', $eventId)) {
-                Log::info('Stripe webhook: duplicate event (already processed)', [
-                    'event_id' => $eventId,
-                    'type' => $event->type,
-                ]);
-                return response()->json(['status' => 'success']);
+            $webhookRecord = $this->webhookEventManager->startProcessing(
+                'stripe',
+                $eventId,
+                $event->type,
+                $event->toArray()
+            );
+            if (!$webhookRecord) {
+                return $this->webhookSuccess();
             }
-
-            // Crea il record webhook per tracking
-            $webhookRecord = WebhookEvent::getOrCreate('stripe', $eventId, [
-                'event_type' => $event->type,
-                'payload' => $event->toArray(),
-            ]);
-
-            if (in_array($webhookRecord->status, ['processing', 'completed'], true)) {
-                return response()->json(['status' => 'success']);
-            }
-
-            $webhookRecord->update(['status' => 'processing']);
 
             // Dispatch in coda per processing asincrono
             $sessionId = $event->data->object->id ?? null;
             ProcessStripeWebhook::dispatch($eventId, $event->type, $sessionId)
                 ->onQueue('webhooks');
 
-            return response()->json(['status' => 'success']);
+            return $this->webhookSuccess();
         } catch (\UnexpectedValueException $e) {
             Log::error('Stripe webhook signature verification failed', [
                 'error' => $e->getMessage(),
             ]);
+
             return response()->json(['error' => 'Invalid signature'], 400);
         } catch (\Exception $e) {
             Log::error('Stripe webhook error', [
                 'error' => $e->getMessage(),
             ]);
+
             return response()->json(['error' => 'Webhook processing error'], 500);
         }
     }
@@ -106,22 +93,18 @@ class PaymentController extends Controller
     {
         try {
             $paypalOrder = $this->paypalService->createOrder($order);
-            
+
             if (!isset($paypalOrder['id'])) {
                 throw new \Exception('Errore nella creazione dell\'ordine PayPal');
             }
 
-            return response()->json([
-                'success' => true,
+            return $this->successResponse([
                 'orderId' => $paypalOrder['id'],
             ]);
         } catch (\Exception $e) {
             Log::error('PayPal checkout error: ' . $e->getMessage());
-            
-            return response()->json([
-                'success' => false,
-                'message' => 'Errore nell\'inizializzazione del pagamento PayPal',
-            ], 500);
+
+            return $this->errorResponse('Errore nell\'inizializzazione del pagamento PayPal');
         }
     }
 
@@ -139,10 +122,7 @@ class PaymentController extends Controller
             $localOrderId = $request->input('local_order_id');
 
             if (!$paypalOrderId || !$localOrderId) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Missing required parameters',
-                ], 400);
+                return $this->errorResponse('Missing required parameters', 400);
             }
 
             // Esegui la capture lato server (ha più affidabilità che client-side)
@@ -167,10 +147,7 @@ class PaymentController extends Controller
                 'paypal_order_id' => $request->input('order_id'),
             ]);
             
-            return response()->json([
-                'success' => false,
-                'message' => 'Errore durante l\'elaborazione del pagamento',
-            ], 500);
+            return $this->errorResponse('Errore durante l\'elaborazione del pagamento');
         }
     }
 
@@ -184,15 +161,15 @@ class PaymentController extends Controller
     public function paypalWebhook(Request $request)
     {
         $requestBody = $request->getContent();
-        
+
         try {
-            $webhookData = json_decode($requestBody, true);
+            $webhookData = $this->parseJsonBody($requestBody);
             $eventId = $webhookData['id'] ?? null;
             $eventType = $webhookData['event_type'] ?? null;
 
             if (!$eventId || !$eventType) {
                 Log::warning('PayPal webhook: missing event_id or event_type');
-                return response()->json(['status' => 'success']);
+                return $this->webhookSuccess();
             }
 
             // Verifica la firma usando l'API PayPal (non calcoli locali)
@@ -200,42 +177,32 @@ class PaymentController extends Controller
                 Log::error('PayPal webhook signature verification failed', [
                     'event_id' => $eventId,
                 ]);
+
                 return response()->json(['error' => 'Invalid signature'], 400);
             }
 
-            // Idempotenza: controlla se l'evento è già stato processato
-            if (WebhookEvent::alreadyProcessed('paypal', $eventId)) {
-                Log::info('PayPal webhook: duplicate event (already processed)', [
-                    'event_id' => $eventId,
-                    'event_type' => $eventType,
-                ]);
-                return response()->json(['status' => 'success']);
+            $webhookRecord = $this->webhookEventManager->startProcessing(
+                'paypal',
+                $eventId,
+                $eventType,
+                $webhookData
+            );
+            if (!$webhookRecord) {
+                return $this->webhookSuccess();
             }
-
-            // Crea il record webhook per tracking
-            $webhookRecord = WebhookEvent::getOrCreate('paypal', $eventId, [
-                'event_type' => $eventType,
-                'payload' => $webhookData,
-            ]);
-
-            if (in_array($webhookRecord->status, ['processing', 'completed'], true)) {
-                return response()->json(['status' => 'success']);
-            }
-
-            $webhookRecord->update(['status' => 'processing']);
 
             // Dispatch in coda per processing asincrono
             ProcessPayPalWebhook::dispatch($eventId, $eventType, $webhookData)
                 ->onQueue('webhooks');
 
-            return response()->json(['status' => 'success']);
+            return $this->webhookSuccess();
         } catch (\Exception $e) {
             Log::error('PayPal webhook error', [
                 'error' => $e->getMessage(),
                 'body' => substr($requestBody, 0, 500), // Primo 500 char del payload
             ]);
             // Rispondi 200 per evitare PayPal retry loop
-            return response()->json(['status' => 'success']);
+            return $this->webhookSuccess();
         }
     }
 
@@ -253,5 +220,34 @@ class PaymentController extends Controller
     public function checkoutCancel(Order $order)
     {
         return view('checkout.cancel', ['order' => $order]);
+    }
+
+    private function parseJsonBody(string $requestBody): array
+    {
+        if ($requestBody === '') {
+            return [];
+        }
+
+        $decoded = json_decode($requestBody, true);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    private function successResponse(array $payload = [])
+    {
+        return response()->json(array_merge(['success' => true], $payload));
+    }
+
+    private function errorResponse(string $message, int $status = 500)
+    {
+        return response()->json([
+            'success' => false,
+            'message' => $message,
+        ], $status);
+    }
+
+    private function webhookSuccess()
+    {
+        return response()->json(['status' => 'success']);
     }
 }

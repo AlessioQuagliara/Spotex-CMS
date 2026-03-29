@@ -8,6 +8,8 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PageBuilderController;
 use App\Http\Controllers\FrontendPageController;
 use App\Http\Controllers\PageCodeController;
+use App\Http\Controllers\PageModuleController;
+use App\Http\Controllers\PageTemplateController;
 use App\Http\Controllers\Api\CouponController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\CustomerDashboardController;
@@ -105,8 +107,16 @@ Route::middleware('auth')->group(function () {
     // Builder v2 (Vite + React modularizzato)
     Route::get('/admin/pages/{page}/builder-v2', [PageBuilderController::class, 'showV2'])->name('pages.builder-v2');
     
+    Route::post('/api/pages/{page}/builder/craft/save', [PageBuilderController::class, 'save'])->name('pages.builder.craft.save');
     Route::post('/api/pages/{page}/builder/save', [PageBuilderController::class, 'save'])->name('pages.builder.save');
     Route::get('/api/pages/{page}/builder/export', [PageBuilderController::class, 'export'])->name('pages.builder.export');
+
+    Route::apiResource('/api/page-modules', PageModuleController::class)->parameters([
+        'page-modules' => 'pageModule',
+    ]);
+    Route::apiResource('/api/page-templates', PageTemplateController::class)->parameters([
+        'page-templates' => 'pageTemplate',
+    ]);
 
     Route::get('/admin/pages/{page}/code', [PageCodeController::class, 'editor'])->name('pages.code');
     Route::get('/admin/pages/code/list', [PageCodeController::class, 'list'])->name('pages.code.list');
