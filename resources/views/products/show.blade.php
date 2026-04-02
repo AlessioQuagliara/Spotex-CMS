@@ -24,6 +24,9 @@
 
 @section('content')
 @php
+    $productShowUrl = route('product.show', ['product' => $product->slug]);
+    $productReviewStoreUrl = route('product.reviews.store', ['product' => $product->slug]);
+    $categoryUrl = $product->category ? route('category.show', ['category' => $product->category->slug]) : null;
     $reviewSchema = null;
     if ($reviewsCount > 0) {
         $reviewSchema = [
@@ -97,7 +100,7 @@
             <h1 class="text-4xl font-bold text-gray-900 mb-2">{{ $product->name }}</h1>
             
             @if($product->category)
-                <a href="{{ route('category.show', $product->category) }}" 
+                <a href="{{ $categoryUrl }}" 
                    class="text-slate-700 hover:text-slate-900 mb-4 inline-block">
                     {{ $product->category->name }}
                 </a>
@@ -228,7 +231,7 @@
                     {{ session('success') }}
                 </div>
             @endif
-            @if($errors->any())
+            @if(isset($errors) && $errors->any())
                 <div class="mb-4 rounded-md bg-red-50 p-3 border border-red-200 text-red-800 text-sm">
                     <ul class="list-disc list-inside">
                         @foreach($errors->all() as $error)
@@ -237,7 +240,7 @@
                     </ul>
                 </div>
             @endif
-            <form method="POST" action="{{ route('product.reviews.store', $product) }}" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <form method="POST" action="{{ $productReviewStoreUrl }}" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 @csrf
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Nome</label>
@@ -277,7 +280,7 @@
         @if($alsoChosen->count() === 3)
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 @foreach($alsoChosen as $related)
-                    <a href="{{ route('product.show', $related->slug) }}" class="group">
+                    <a href="{{ route('product.show', ['product' => $related->slug]) }}" class="group">
                         <div class="bg-gray-100 rounded-lg overflow-hidden mb-3 aspect-square">
                             <img src="{{ $imageUrl($related->primaryImage?->image_path, 'https://via.placeholder.com/300') }}" 
                                  alt="{{ $related->name }}" class="w-full h-full object-cover group-hover:scale-105 transition">

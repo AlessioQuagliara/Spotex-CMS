@@ -1,12 +1,19 @@
 <?php
 
+$stackChannels = array_values(array_filter(array_map(
+    'trim',
+    explode(',', (string) env('LOG_STACK', 'single')),
+)));
+
 return [
-    'default' => env('APP_LOG', 'single'),
+    'default' => env('LOG_CHANNEL', env('APP_LOG', 'single')),
+
+    'deprecations' => env('LOG_DEPRECATIONS_CHANNEL', 'deprecations'),
 
     'channels' => [
         'stack' => [
             'driver' => 'stack',
-            'channels' => ['single'],
+            'channels' => $stackChannels === [] ? ['single'] : $stackChannels,
             'ignore_exceptions' => false,
         ],
 
@@ -27,6 +34,13 @@ return [
 
         'null' => [
             'driver' => 'null',
+        ],
+
+        'deprecations' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/php-deprecations.log'),
+            'level' => env('LOG_DEPRECATIONS_LEVEL', 'notice'),
+            'replace_placeholders' => true,
         ],
 
         'emergency' => [

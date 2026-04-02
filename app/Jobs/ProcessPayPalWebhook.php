@@ -10,6 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ProcessPayPalWebhook implements ShouldQueue
@@ -40,11 +41,22 @@ class ProcessPayPalWebhook implements ShouldQueue
                 if ($result['success']) {
                     $orderId = $result['order_id'] ?? null;
                     if ($orderId) {
-                        $order = Order::find($orderId);
+                        DB::transaction(function () use ($orderId, $result) {
+                            $order = Order::query()->lockForUpdate()->find($orderId);
 
-                        if ($order && $order->payment_status === 'pending') {
-                            $order->markAsPaid($result['paypal_transaction_id'], 'paypal');
-                        }
+                            if (!$order || $order->provider_event_id === $this->eventId) {
+                                return;
+                            }
+
+                            if ($order->payment_status === 'pending') {
+                                $order->markAsPaid($result['paypal_transaction_id'], 'paypal', $this->eventId);
+                                return;
+                            }
+
+                            if ($order->provider_event_id === null) {
+                                $order->update(['provider_event_id' => $this->eventId]);
+                            }
+                        });
                     }
 
                     $webhookRecord?->markAsCompleted($orderId ?? null);

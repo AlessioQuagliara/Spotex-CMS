@@ -8,7 +8,8 @@ export default defineConfig({
             input: [
                 'resources/css/app.css',
                 'resources/js/app.js',
-                'resources/js/builder/main.jsx', // Nuovo entry point per il builder
+                'resources/js/builder/craft/CraftEditorShell.jsx',
+                'resources/js/builder/grapes/main.js',
             ],
             refresh: true,
         }),

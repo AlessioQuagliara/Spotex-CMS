@@ -1,3 +1,5 @@
+<?php $__env->startSection('tailwind_runtime', '1'); ?>
+
 <?php $__env->startSection('seo_title', $page->title . ' - SPOTEX'); ?>
 <?php $__env->startSection('seo_description', $page->description ?? ''); ?>
 <?php $__env->startSection('seo_keywords', $page->keywords ?? ''); ?>

@@ -46,11 +46,18 @@ class PaymentController extends Controller
     public function stripeWebhook(Request $request)
     {
         $requestBody = $request->getContent();
+        $signature = $request->header('Stripe-Signature');
+
+        if (!is_string($signature) || trim($signature) === '') {
+            Log::warning('Stripe webhook missing signature header');
+
+            return response()->json(['error' => 'Invalid signature'], 400);
+        }
 
         try {
             $event = Webhook::constructEvent(
                 $requestBody,
-                $request->header('Stripe-Signature'),
+                $signature,
                 config('services.stripe.webhook_secret')
             );
 
@@ -71,7 +78,7 @@ class PaymentController extends Controller
                 ->onQueue('webhooks');
 
             return $this->webhookSuccess();
-        } catch (\UnexpectedValueException $e) {
+        } catch (\UnexpectedValueException|\Stripe\Exception\SignatureVerificationException $e) {
             Log::error('Stripe webhook signature verification failed', [
                 'error' => $e->getMessage(),
             ]);

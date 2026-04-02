@@ -32,13 +32,16 @@ class SavePageBuilderRequest extends FormRequest
         $validator->after(function (Validator $validator): void {
             $document = $this->input('document');
             $elements = $this->input('elements');
+            $hasCodePayload = is_string($this->input('html'))
+                || is_string($this->input('css'))
+                || is_string($this->input('js'));
 
-            if (!is_array($document) && !is_array($elements)) {
-                $validator->errors()->add('document', 'document or elements is required');
+            if (!is_array($document) && !is_array($elements) && !$hasCodePayload) {
+                $validator->errors()->add('document', 'document or elements (or html/css/js) is required');
                 return;
             }
 
-            if (is_array($document)) {
+            if (is_array($document) && !$this->isGrapesPayload($document)) {
                 $errors = app(BuilderDocumentValidator::class)->validate($document);
 
                 foreach ($errors as $error) {
@@ -46,5 +49,24 @@ class SavePageBuilderRequest extends FormRequest
                 }
             }
         });
+    }
+
+    private function isGrapesPayload(mixed $document): bool
+    {
+        $schemaVersion = (string) $this->input('schema_version', '');
+
+        if (str_starts_with($schemaVersion, 'grapesjs')) {
+            return true;
+        }
+
+        if (!is_array($document)) {
+            return false;
+        }
+
+        if (($document['type'] ?? null) === 'grapesjs') {
+            return true;
+        }
+
+        return isset($document['projectData']) || isset($document['pages']) || isset($document['styles']) || isset($document['assets']);
     }
 }

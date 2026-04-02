@@ -5,9 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\DB;
 
 class Order extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'user_id',
         'status',
@@ -91,15 +95,36 @@ class Order extends Model
     /**
      * Segna l'ordine come pagato
      */
-    public function markAsPaid(string $transactionId, string $paymentMethod = 'stripe'): void
+    public function markAsPaid(string $transactionId, string $paymentMethod = 'stripe', ?string $providerEventId = null): void
     {
-        $this->update([
+        $payload = [
             'payment_status' => 'paid',
             'transaction_id' => $transactionId,
             'paid_at' => now(),
             'payment_method' => $paymentMethod,
             'status' => 'paid',
-        ]);
+        ];
+
+        if ($providerEventId !== null) {
+            $payload['provider_event_id'] = $providerEventId;
+        }
+
+        $this->update($payload);
+
+        // Decrementa lo stock per ogni prodotto dell'ordine, con lock row-level.
+        foreach ($this->items as $item) {
+            if (!$item->product_id) {
+                continue;
+            }
+
+            DB::transaction(function () use ($item) {
+                $product = Product::query()->lockForUpdate()->find($item->product_id);
+
+                if ($product && (int) $product->stock > 0) {
+                    $product->decrement('stock', min((int) $item->quantity, (int) $product->stock));
+                }
+            });
+        }
     }
 
     /**

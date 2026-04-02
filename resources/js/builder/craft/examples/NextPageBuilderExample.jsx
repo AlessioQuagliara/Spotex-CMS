@@ -54,8 +54,11 @@ export default function NextPageBuilderExample() {
                 pageId={1}
                 pageTitle="Pagina demo"
                 pageSlug="demo"
+                schemaVersion="craft-v1"
                 initialData={initialData}
                 initialPreviewCatalog={{ products: [], categories: [] }}
+                saveEndpoint="/api/page"
+                autoSaveDelay={1000}
             />
         </div>
     );

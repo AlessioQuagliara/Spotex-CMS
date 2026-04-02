@@ -8,6 +8,7 @@ use App\Models\Coupon;
 use App\Models\ShippingRule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class CheckoutController extends Controller
 {
@@ -24,32 +25,34 @@ class CheckoutController extends Controller
         $discountAmount = 0;
         $total = max(0, $subtotal + $shippingCost - $discountAmount);
 
-        // Crea un ordine temporaneo (user_id nullable per guest)
-        $order = Order::create([
-            'user_id' => Auth::id() ?? null,
-            'status' => 'pending',
-            'payment_status' => 'pending',
-            'shipping_status' => 'not_shipped',
-            'subtotal' => $subtotal,
-            'shipping_cost' => $shippingCost,
-            'discount_amount' => $discountAmount,
-            'discount_code' => null,
-            'shipping_method' => null,
-            'total' => $total,
-            'shipping_address' => '',
-            'billing_address' => '',
-        ]);
-
-        // Aggiungi gli articoli all'ordine
-        foreach ($cart as $item) {
-            OrderItem::create([
-                'order_id' => $order->id,
-                'product_id' => $item['id'],
-                'quantity' => $item['quantity'],
-                'unit_price' => $item['price'],
-                'subtotal' => $item['price'] * $item['quantity'],
+        $order = DB::transaction(function () use ($subtotal, $shippingCost, $discountAmount, $total, $cart) {
+            $order = Order::create([
+                'user_id' => Auth::id() ?? null,
+                'status' => 'pending',
+                'payment_status' => 'pending',
+                'shipping_status' => 'not_shipped',
+                'subtotal' => $subtotal,
+                'shipping_cost' => $shippingCost,
+                'discount_amount' => $discountAmount,
+                'discount_code' => null,
+                'shipping_method' => null,
+                'total' => $total,
+                'shipping_address' => '',
+                'billing_address' => '',
             ]);
-        }
+
+            foreach ($cart as $item) {
+                OrderItem::create([
+                    'order_id' => $order->id,
+                    'product_id' => $item['id'],
+                    'quantity' => $item['quantity'],
+                    'unit_price' => $item['price'],
+                    'subtotal' => $item['price'] * $item['quantity'],
+                ]);
+            }
+
+            return $order;
+        });
 
         // Converte il carrello da array associativo a array sequenziale per il JSON
         $cartArray = array_values($cart);

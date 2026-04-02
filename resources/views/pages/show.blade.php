@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('tailwind_runtime', '1')
 
 @section('seo_title', $page->title . ' - SPOTEX')
 @section('seo_description', $page->description ?? '')

@@ -12,6 +12,9 @@ export default function Editor({
     initialModules,
     initialMeta,
     initialPreviewCatalog,
+    saveEndpoint,
+    autoSaveDelay,
+    buildSavePayload,
 }) {
     return (
         <CraftEditorShell
@@ -25,6 +28,9 @@ export default function Editor({
             initialModules={initialModules}
             initialMeta={initialMeta}
             initialPreviewCatalog={initialPreviewCatalog}
+            saveEndpoint={saveEndpoint}
+            autoSaveDelay={autoSaveDelay}
+            buildSavePayload={buildSavePayload}
         />
     );
 }

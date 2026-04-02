@@ -3,6 +3,8 @@
 namespace App\Services\Webhooks;
 
 use App\Models\WebhookEvent;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class WebhookEventManager
@@ -17,26 +19,51 @@ class WebhookEventManager
         string $eventType,
         array $payload
     ): ?WebhookEvent {
-        if (WebhookEvent::alreadyProcessed($provider, $eventId)) {
-            Log::info("{$provider} webhook: duplicate event (already processed)", [
-                'event_id' => $eventId,
-                'event_type' => $eventType,
-            ]);
+        return DB::transaction(function () use ($provider, $eventId, $eventType, $payload) {
+            $webhookRecord = WebhookEvent::query()
+                ->where('provider', $provider)
+                ->where('external_event_id', $eventId)
+                ->lockForUpdate()
+                ->first();
 
-            return null;
-        }
+            if ($webhookRecord === null) {
+                try {
+                    $webhookRecord = WebhookEvent::create([
+                        'provider' => $provider,
+                        'external_event_id' => $eventId,
+                        'event_type' => $eventType,
+                        'payload' => $payload,
+                        'status' => 'pending',
+                    ]);
+                } catch (QueryException $exception) {
+                    $webhookRecord = WebhookEvent::query()
+                        ->where('provider', $provider)
+                        ->where('external_event_id', $eventId)
+                        ->lockForUpdate()
+                        ->first();
 
-        $webhookRecord = WebhookEvent::getOrCreate($provider, $eventId, [
-            'event_type' => $eventType,
-            'payload' => $payload,
-        ]);
+                    if ($webhookRecord === null) {
+                        throw $exception;
+                    }
+                }
+            }
 
-        if (in_array($webhookRecord->status, ['processing', 'completed'], true)) {
-            return null;
-        }
+            if ($webhookRecord->status === 'completed') {
+                Log::info("{$provider} webhook: duplicate event (already processed)", [
+                    'event_id' => $eventId,
+                    'event_type' => $eventType,
+                ]);
 
-        $webhookRecord->update(['status' => 'processing']);
+                return null;
+            }
 
-        return $webhookRecord;
+            if ($webhookRecord->status === 'processing') {
+                return null;
+            }
+
+            $webhookRecord->update(['status' => 'processing']);
+
+            return $webhookRecord->fresh();
+        });
     }
 }

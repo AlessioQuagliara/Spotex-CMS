@@ -6,7 +6,6 @@ use App\Http\Requests\SavePageBuilderRequest;
 use App\Models\Page;
 use App\Services\Builder\BuilderContentSanitizer;
 use App\Services\Builder\BuilderDocumentRenderer;
-use App\Services\Builder\BuilderPreviewCatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 
@@ -15,7 +14,6 @@ class PageBuilderController extends Controller
     public function __construct(
         private readonly BuilderContentSanitizer $sanitizer,
         private readonly BuilderDocumentRenderer $renderer,
-        private readonly BuilderPreviewCatalog $previewCatalog,
     ) {
     }
 
@@ -24,17 +22,9 @@ class PageBuilderController extends Controller
      */
     public function show(Page $page): View
     {
-        // Se non c'è builder_data, creiamo blocchi HTML dal contenuto
-        $builderData = $page->builder_data ?? [];
-        
-        if (empty($builderData) && !empty($page->html_content)) {
-            // Dividi il contenuto in sezioni
-            $builderData = $this->parseHtmlIntoBlocks($page->html_content);
-        }
-        
-        return view('builder.index', [
+        return view('builder-grapes', [
             'page' => $page,
-            'builderData' => $builderData,
+            'grapesPayload' => $this->prepareGrapesPayload($page),
         ]);
     }
 
@@ -43,57 +33,7 @@ class PageBuilderController extends Controller
      */
     public function showV2(Page $page): View
     {
-        return view('builder-v2', [
-            'page' => $page,
-            'previewCatalog' => $this->previewCatalog->build(),
-        ]);
-    }
-
-    /**
-     * Converte HTML in blocchi separati per ogni sezione o div principale
-     */
-    private function parseHtmlIntoBlocks(string $html): array
-    {
-        $blocks = [];
-        $y = 0;
-        
-        // Estrai i tag <section> oppure i <div> di primo livello
-        if (preg_match_all('/<section[^>]*>(.*?)<\/section>/is', $html, $matches)) {
-            foreach ($matches[1] as $index => $content) {
-                $fullSection = $matches[0][$index];
-                $blocks[] = [
-                    'id' => (string)$index,
-                    'type' => 'html-block',
-                    'content' => $fullSection,
-                    'x' => 0,
-                    'y' => $y,
-                    'width' => 1200,
-                    'height' => 300,
-                    'styles' => [
-                        'backgroundColor' => 'transparent'
-                    ]
-                ];
-                $y += 350; // Spaziatura tra blocchi
-            }
-        }
-        
-        // Se non ci sono sezioni, crea un unico blocco
-        if (empty($blocks)) {
-            $blocks[] = [
-                'id' => '0',
-                'type' => 'html-block',
-                'content' => $html,
-                'x' => 0,
-                'y' => 0,
-                'width' => 1200,
-                'height' => 800,
-                'styles' => [
-                    'backgroundColor' => 'transparent'
-                ]
-            ];
-        }
-        
-        return $blocks;
+        return $this->show($page);
     }
 
     /**
@@ -102,12 +42,38 @@ class PageBuilderController extends Controller
     public function save(SavePageBuilderRequest $request, Page $page): JsonResponse
     {
         $validated = $request->validated();
+        $schemaVersion = (string) ($validated['schema_version'] ?? $page->builder_schema_version ?? 'grapesjs-v1');
+
+        if ($this->isGrapesSchema($schemaVersion, $validated['document'] ?? null)) {
+            $projectData = $this->extractProjectData($validated['document'] ?? []);
+            $safeMeta = is_array($validated['meta'] ?? null) ? $validated['meta'] : [];
+
+            $page->update([
+                'builder_schema_version' => 'grapesjs-v1',
+                'builder_document' => [
+                    'type' => 'grapesjs',
+                    'projectData' => $projectData,
+                ],
+                'builder_data' => [],
+                'builder_modules' => $validated['modules'] ?? $page->builder_modules,
+                'builder_meta' => array_merge($safeMeta, ['editor' => 'grapesjs']),
+                'html_content' => $this->sanitizer->sanitizeHtml($validated['html'] ?? $page->html_content ?? ''),
+                'css_content' => $this->sanitizer->sanitizeCss($validated['css'] ?? $page->css_content ?? ''),
+                'js_content' => $this->sanitizer->sanitizeJs($validated['js'] ?? $page->js_content ?? ''),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pagina salvata con successo',
+                'schema_version' => $page->builder_schema_version,
+                'page' => $page,
+            ]);
+        }
 
         $document = is_array($validated['document'] ?? null)
             ? $validated['document']
             : $this->convertLegacyElementsToDocument($validated['elements'] ?? []);
 
-        $schemaVersion = $validated['schema_version'] ?? 'craft-v1';
         $rendered = $this->renderer->renderDocument($document);
 
         $page->update([
@@ -134,13 +100,96 @@ class PageBuilderController extends Controller
      */
     public function export(Page $page): JsonResponse
     {
+        $document = $page->builder_document ?? $this->convertLegacyElementsToDocument($page->builder_data ?? []);
+        $projectData = $this->extractProjectData($document);
+
         return response()->json([
             'schema_version' => $page->builder_schema_version ?? 'craft-v1',
-            'document' => $page->builder_document ?? $this->convertLegacyElementsToDocument($page->builder_data ?? []),
+            'document' => $document,
+            'project_data' => $projectData,
             'elements' => $page->builder_data ?? [],
             'modules' => $page->builder_modules ?? [],
             'meta' => $page->builder_meta ?? [],
+            'html' => $page->html_content ?? '',
+            'css' => $page->css_content ?? '',
+            'js' => $page->js_content ?? '',
         ]);
+    }
+
+    private function prepareGrapesPayload(Page $page): array
+    {
+        $document = is_array($page->builder_document) ? $page->builder_document : [];
+        $projectData = $this->extractProjectData($document);
+
+        $html = (string) ($page->html_content ?? '');
+        $css = (string) ($page->css_content ?? '');
+        $js = (string) ($page->js_content ?? '');
+
+        if ($html === '' && $css === '' && $js === '') {
+            if (!empty($document) && !$this->isGrapesSchema((string) ($page->builder_schema_version ?? ''), $document)) {
+                $rendered = $this->renderer->renderDocument($document);
+                $html = (string) ($rendered['html'] ?? '');
+                $css = (string) ($rendered['css'] ?? '');
+                $js = (string) ($rendered['js'] ?? '');
+            } elseif (is_array($page->builder_data) && !empty($page->builder_data)) {
+                $rendered = $this->renderer->renderDocument($this->convertLegacyElementsToDocument($page->builder_data));
+                $html = (string) ($rendered['html'] ?? '');
+                $css = (string) ($rendered['css'] ?? '');
+                $js = (string) ($rendered['js'] ?? '');
+            }
+        }
+
+        return [
+            'pageId' => (string) $page->id,
+            'pageTitle' => (string) $page->title,
+            'pageSlug' => (string) $page->slug,
+            'schemaVersion' => str_starts_with((string) ($page->builder_schema_version ?? ''), 'grapesjs')
+                ? (string) $page->builder_schema_version
+                : 'grapesjs-v1',
+            'saveUrl' => route('pages.builder.save', $page),
+            'html' => $html,
+            'css' => $css,
+            'js' => $js,
+            'projectData' => $projectData,
+        ];
+    }
+
+    private function extractProjectData(mixed $document): array
+    {
+        if (!is_array($document) || $document === []) {
+            return [];
+        }
+
+        if (is_array($document['projectData'] ?? null)) {
+            return $document['projectData'];
+        }
+
+        if (($document['type'] ?? null) === 'grapesjs') {
+            return is_array($document['data'] ?? null) ? $document['data'] : [];
+        }
+
+        if (isset($document['pages']) || isset($document['styles']) || isset($document['assets'])) {
+            return $document;
+        }
+
+        return [];
+    }
+
+    private function isGrapesSchema(string $schemaVersion, mixed $document): bool
+    {
+        if (str_starts_with($schemaVersion, 'grapesjs')) {
+            return true;
+        }
+
+        if (!is_array($document)) {
+            return false;
+        }
+
+        if (($document['type'] ?? null) === 'grapesjs') {
+            return true;
+        }
+
+        return isset($document['projectData']) || isset($document['pages']) || isset($document['styles']) || isset($document['assets']);
     }
 
     private function convertLegacyElementsToDocument(array $elements): array

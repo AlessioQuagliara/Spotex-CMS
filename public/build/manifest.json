@@ -14,13 +14,13 @@
     "src": "resources/js/app.js",
     "isEntry": true
   },
-  "resources/js/builder/main.jsx": {
-    "file": "assets/main-DXZvKOAZ.js",
+  "resources/js/builder/grapes/main.js": {
+    "file": "assets/main-Dof6wKMj.js",
     "name": "main",
-    "src": "resources/js/builder/main.jsx",
+    "src": "resources/js/builder/grapes/main.js",
     "isEntry": true,
     "css": [
-      "assets/main-aYi7gA5m.css"
+      "assets/main-DutjtH23.css"
     ]
   }
 }

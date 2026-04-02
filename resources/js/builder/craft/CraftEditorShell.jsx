@@ -3,7 +3,7 @@ import { Editor, Frame, Element, useEditor } from '@craftjs/core';
 import { craftResolver, toolboxComponents } from './resolver';
 import { CraftRoot } from './components/CraftRoot';
 import { PreviewCatalogProvider } from './context/PreviewCatalogContext';
-import { createDefaultDocument, deserializePage, legacyElementsToCraftDocument } from './utils/defaultDocument';
+import { createDefaultDocument, deserializePage } from './utils/defaultDocument';
 import { craftDocumentToHtml, craftDocumentToLegacyElements, serializePage } from './utils/serializeCraftDocument';
 import { generateCSS } from '../utils/serializer';
 
@@ -18,6 +18,9 @@ export default function CraftEditorShell({
     initialMeta,
     initialPreviewCatalog,
     initialData,
+    saveEndpoint,
+    autoSaveDelay,
+    buildSavePayload,
 }) {
     const document = React.useMemo(() => createDefaultDocument(), []);
 
@@ -43,7 +46,16 @@ export default function CraftEditorShell({
                 <DocumentLoader initialData={resolvedInitialData} initialElements={initialElements} />
                 <KeyboardShortcuts />
                 <div className="flex h-screen flex-col bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.15),_transparent_42%),linear-gradient(180deg,_#f8fafc_0%,_#e2e8f0_100%)] text-slate-900">
-                    <Header pageTitle={pageTitle} pageSlug={pageSlug} schemaVersion={schemaVersion} initialModules={initialModules} initialMeta={initialMeta} />
+                    <Header
+                        pageTitle={pageTitle}
+                        pageSlug={pageSlug}
+                        schemaVersion={schemaVersion}
+                        initialModules={initialModules}
+                        initialMeta={initialMeta}
+                        saveEndpoint={saveEndpoint}
+                        autoSaveDelay={autoSaveDelay}
+                        buildSavePayload={buildSavePayload}
+                    />
                     <div className="grid flex-1 grid-cols-[280px_minmax(0,1fr)_320px] gap-4 overflow-hidden p-4">
                         <Toolbox />
                         <div className="overflow-auto rounded-[28px] border border-white/70 bg-white/60 p-6 backdrop-blur">
@@ -59,7 +71,7 @@ export default function CraftEditorShell({
     );
 }
 
-function Header({ pageTitle, pageSlug, schemaVersion, initialModules, initialMeta }) {
+function Header({ pageTitle, pageSlug, schemaVersion, initialModules, initialMeta, saveEndpoint, autoSaveDelay = 900, buildSavePayload }) {
     const { actions, query, selectedId, canDuplicate, canDelete, nodesSnapshot } = useEditor((state, queryApi) => {
         const currentSelectedId = state.events.selected.values().next().value;
         const selectedNode = currentSelectedId ? state.nodes[currentSelectedId] : null;
@@ -96,23 +108,35 @@ function Header({ pageTitle, pageSlug, schemaVersion, initialModules, initialMet
             const html = craftDocumentToHtml(normalizedDocument);
             const css = generateCSS({});
             const csrfToken = window.document.querySelector('meta[name="csrf-token"]')?.content || '';
+            const endpoint = saveEndpoint || `/api/pages/${pageSlug}/builder/craft/save`;
+            const defaultPayload = {
+                schema_version: schemaVersion || 'craft-v1',
+                document: normalizedDocument,
+                page_tree: pageTree,
+                elements,
+                modules: initialModules || [],
+                meta: initialMeta || {},
+                html,
+                css,
+            };
+            const payload = typeof buildSavePayload === 'function'
+                ? buildSavePayload({
+                    defaultPayload,
+                    document: normalizedDocument,
+                    pageTree,
+                    elements,
+                    html,
+                    css,
+                })
+                : defaultPayload;
 
-            const response = await fetch(`/api/pages/${pageSlug}/builder/craft/save`, {
+            const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': csrfToken,
                 },
-                body: JSON.stringify({
-                    schema_version: schemaVersion || 'craft-v1',
-                    document: normalizedDocument,
-                    page_tree: pageTree,
-                    elements,
-                    modules: initialModules || [],
-                    meta: initialMeta || {},
-                    html,
-                    css,
-                }),
+                body: JSON.stringify(payload),
             });
 
             if (!response.ok) {
@@ -143,8 +167,8 @@ function Header({ pageTitle, pageSlug, schemaVersion, initialModules, initialMet
 
         debouncedTimeoutRef.current = window.setTimeout(() => {
             saveRef.current();
-        }, 900);
-    }, []);
+        }, autoSaveDelay);
+    }, [autoSaveDelay]);
 
     const handleSave = React.useCallback(async () => {
         if (debouncedTimeoutRef.current) {
@@ -252,10 +276,10 @@ function ToolboxItem({ component, create, addComponent }) {
 
     React.useEffect(() => {
         if (!Component || !ref.current || typeof create !== 'function') {
-            return undefined;
+            return;
         }
 
-        return create(ref.current, <Component {...component.props} />);
+        create(ref.current, <Component {...component.props} />);
     }, [Component, component.props, create]);
 
     return (

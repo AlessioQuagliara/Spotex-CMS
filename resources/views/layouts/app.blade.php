@@ -36,10 +36,11 @@
     @if($businessFavicon)
         <link rel="icon" href="{{ asset('storage/' . $businessFavicon) }}" type="image/x-icon">
     @endif
-    <!-- Tailwind CSS inline per sviluppo -->
     @if(file_exists(public_path('build/manifest.json')))
         @vite(['resources/css/app.css', 'resources/js/app.js'])
-    @else
+    @endif
+
+    @hasSection('tailwind_runtime')
         <script src="https://cdn.tailwindcss.com"></script>
     @endif
     <style>

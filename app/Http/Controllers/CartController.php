@@ -13,13 +13,34 @@ class CartController extends Controller
             'quantity' => 'required|integer|min:1',
         ]);
 
+        $product = \App\Models\Product::find($validated['product_id']);
+
+        if ($product === null || (int) $product->stock <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Prodotto non disponibile o esaurito.',
+            ], 422);
+        }
+
         $cart = session()->get('cart', []);
         $productId = $validated['product_id'];
 
         if (isset($cart[$productId])) {
-            $cart[$productId]['quantity'] += $validated['quantity'];
+            $newQty = $cart[$productId]['quantity'] + $validated['quantity'];
+            if ($newQty > (int) $product->stock) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Quantità richiesta supera le scorte disponibili.',
+                ], 422);
+            }
+            $cart[$productId]['quantity'] = $newQty;
         } else {
-            $product = \App\Models\Product::find($productId);
+            if ($validated['quantity'] > (int) $product->stock) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Quantità richiesta supera le scorte disponibili.',
+                ], 422);
+            }
             $cart[$productId] = [
                 'id' => $product->id,
                 'name' => $product->name,

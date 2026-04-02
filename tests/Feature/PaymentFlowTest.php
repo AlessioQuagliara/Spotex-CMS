@@ -6,6 +6,8 @@ use Tests\TestCase;
 use App\Models\Product;
 use App\Models\Order;
 use App\Models\User;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class PaymentFlowTest extends TestCase
@@ -15,6 +17,8 @@ class PaymentFlowTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->withoutMiddleware(VerifyCsrfToken::class);
+        $this->withoutMiddleware(ValidateCsrfToken::class);
         $this->seed();
     }
 
@@ -47,23 +51,38 @@ class PaymentFlowTest extends TestCase
     {
         /** @var \App\Models\User $user */
         $user = User::factory()->create();
+        $product = Product::factory()->create(['price' => 49.90]);
         $order = Order::factory()->create([
             'user_id' => $user->id,
             'payment_status' => 'pending',
         ]);
 
         $this->actingAs($user)
-            ->post(route('checkout.create', ['order_id' => $order->id]), [
+            ->withSession([
+                'cart' => [
+                    $product->id => [
+                        'id' => $product->id,
+                        'name' => $product->name,
+                        'price' => (float) $product->price,
+                        'quantity' => 2,
+                        'image' => null,
+                    ],
+                ],
+            ])
+            ->post(route('checkout.create'), [
+                'order_id' => $order->id,
                 'shipping_address' => 'Via Roma 123',
                 'shipping_city' => 'Milano',
                 'shipping_zip' => '20100',
                 'shipping_country' => 'Italia',
+                'shipping_method' => 'standard',
             ])
             ->assertJson(['success' => true]);
 
         $this->assertDatabaseHas('orders', [
             'id' => $order->id,
             'user_id' => $user->id,
+            'shipping_method' => 'standard',
         ]);
     }
 
@@ -81,8 +100,9 @@ class PaymentFlowTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->get(route('order.edit', $order))
-            ->assertSee('readonly');
+            ->get(route('customer.orders.edit', $order))
+            ->assertRedirect()
+            ->assertSessionHas('error', 'Non puoi modificare un ordine già pagato.');
     }
 
     /**
@@ -94,14 +114,28 @@ class PaymentFlowTest extends TestCase
         $user1 = User::factory()->create();
         /** @var \App\Models\User $user2 */
         $user2 = User::factory()->create();
+        $product = Product::factory()->create(['price' => 39.90]);
         $order = Order::factory()->create(['user_id' => $user1->id]);
 
         $this->actingAs($user2)
-            ->post(route('checkout.create', ['order_id' => $order->id]), [
+            ->withSession([
+                'cart' => [
+                    $product->id => [
+                        'id' => $product->id,
+                        'name' => $product->name,
+                        'price' => (float) $product->price,
+                        'quantity' => 1,
+                        'image' => null,
+                    ],
+                ],
+            ])
+            ->post(route('checkout.create'), [
+                'order_id' => $order->id,
                 'shipping_address' => 'Via Test',
                 'shipping_city' => 'Test',
                 'shipping_zip' => '12345',
                 'shipping_country' => 'Test',
+                'shipping_method' => 'standard',
             ])
             ->assertForbidden();
     }
@@ -124,14 +158,13 @@ class PaymentFlowTest extends TestCase
             ],
         ];
 
-        // Nota: questo è pseudocodice, il webhook vero è più complesso
-        $this->post('/api/webhooks/stripe', $payload)
-            ->assertOk();
+        $this->postJson(route('webhook.stripe'), $payload)
+            ->assertStatus(400);
 
-        // $this->assertDatabaseHas('orders', [
-        //     'id' => $order->id,
-        //     'status' => 'paid',
-        // ]);
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'payment_status' => 'pending',
+        ]);
     }
 
     /**
@@ -177,12 +210,12 @@ class PaymentFlowTest extends TestCase
             ->post(route('cart.add'), [
                 'product_id' => $product->id,
                 'quantity' => 1,
-            ]);
+            ])
+            ->assertStatus(422)
+            ->assertJson(['success' => false]);
 
         $product->refresh();
-        if ($product->stock !== 0) {
-            throw new \RuntimeException('Stock should be 0 for out of stock product.');
-        }
+        $this->assertSame(0, $product->stock);
     }
 
     /**

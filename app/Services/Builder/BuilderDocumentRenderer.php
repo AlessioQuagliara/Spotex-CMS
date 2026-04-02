@@ -19,7 +19,28 @@ class BuilderDocumentRenderer
         return Cache::remember(
             $this->cache->pageCacheKey($page),
             now()->addHours(6),
-            fn () => $this->renderDocument(is_array($page->builder_document) ? $page->builder_document : []),
+            function () use ($page): array {
+                $document = is_array($page->builder_document) ? $page->builder_document : [];
+                $schemaVersion = trim((string) ($page->builder_schema_version ?? ''));
+
+                if ($schemaVersion !== '' && $document !== []) {
+                    return $this->renderDocument($document);
+                }
+
+                $html = trim((string) ($page->html_content ?? ''));
+                $css = trim((string) ($page->css_content ?? ''));
+                $js = trim((string) ($page->js_content ?? ''));
+
+                if ($html !== '' || $css !== '' || $js !== '') {
+                    return [
+                        'html' => $html,
+                        'css' => $css,
+                        'js' => $js,
+                    ];
+                }
+
+                return $this->renderDocument($document);
+            },
         );
     }
 

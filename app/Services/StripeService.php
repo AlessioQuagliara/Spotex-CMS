@@ -5,6 +5,7 @@ namespace App\Services;
 use Stripe\Stripe;
 use Stripe\Checkout\Session;
 use App\Models\Order;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class StripeService
@@ -106,21 +107,37 @@ class StripeService
     public function handlePaymentSuccess(string $sessionId, ?string $eventId = null): ?Order
     {
         $session = Session::retrieve($sessionId);
-        
+
         if ($session->payment_status === 'paid') {
-            $order = Order::find($session->metadata->order_id);
-            
-            if ($order && $order->payment_status === 'pending') {
-                $order->markAsPaid($session->payment_intent, 'stripe');
+            return DB::transaction(function () use ($session, $eventId) {
+                $orderId = (int) ($session->metadata->order_id ?? 0);
 
-                // Compatibilità legacy
-                $order->update([
-                    'status' => 'paid',
-                    'provider_event_id' => $eventId, // ADDED for idempotency
-                ]);
-            }
+                if ($orderId <= 0) {
+                    return null;
+                }
 
-            return $order;
+                $order = Order::query()->lockForUpdate()->find($orderId);
+
+                if (!$order) {
+                    return null;
+                }
+
+                if ($eventId !== null && $order->provider_event_id === $eventId) {
+                    return $order;
+                }
+
+                if ($order->payment_status === 'pending') {
+                    $order->markAsPaid($session->payment_intent, 'stripe', $eventId);
+                    return $order->fresh();
+                }
+
+                if ($eventId !== null && $order->provider_event_id === null) {
+                    $order->update(['provider_event_id' => $eventId]);
+                    return $order->fresh();
+                }
+
+                return $order;
+            });
         }
 
         return null;
