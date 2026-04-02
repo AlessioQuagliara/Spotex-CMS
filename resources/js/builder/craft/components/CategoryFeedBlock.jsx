@@ -88,4 +88,7 @@ CategoryFeedBlock.craft = {
     related: {
         settings: CategoryFeedSettings,
     },
+    rules: {
+        canDrop: () => false,
+    },
 };

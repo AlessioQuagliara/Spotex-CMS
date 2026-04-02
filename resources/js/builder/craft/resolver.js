@@ -1,25 +1,35 @@
 import { ButtonBlock } from './components/ButtonBlock';
+import { Button } from './components/Button';
 import { CategoryFeedBlock } from './components/CategoryFeedBlock';
+import { Container } from './components/Container';
 import { CraftRoot } from './components/CraftRoot';
+import { HtmlBlock } from './components/HtmlBlock';
+import { Image } from './components/Image';
 import { ImageBlock } from './components/ImageBlock';
 import { ProductGridBlock } from './components/ProductGridBlock';
 import { SectionBlock } from './components/SectionBlock';
+import { Text } from './components/Text';
 import { TextBlock } from './components/TextBlock';
 
 export const craftResolver = {
     CraftRoot,
     SectionBlock,
+    Container,
     TextBlock,
+    Text,
+    HtmlBlock,
     ButtonBlock,
+    Button,
     ImageBlock,
+    Image,
     ProductGridBlock,
     CategoryFeedBlock,
 };
 
 export const toolboxComponents = [
     {
-        label: 'Section',
-        type: 'SectionBlock',
+        label: 'Container',
+        type: 'Container',
         props: {
             background: '#ffffff',
             padding: 24,
@@ -28,7 +38,7 @@ export const toolboxComponents = [
     },
     {
         label: 'Text',
-        type: 'TextBlock',
+        type: 'Text',
         props: {
             text: 'Nuovo testo',
             color: '#111827',
@@ -36,8 +46,18 @@ export const toolboxComponents = [
         },
     },
     {
+        label: 'HTML',
+        type: 'HtmlBlock',
+        props: {
+            html: '<div>Nuovo blocco HTML</div>',
+            background: 'transparent',
+            padding: 0,
+            radius: 0,
+        },
+    },
+    {
         label: 'Button',
-        type: 'ButtonBlock',
+        type: 'Button',
         props: {
             label: 'Acquista ora',
             href: '#',
@@ -48,7 +68,7 @@ export const toolboxComponents = [
     },
     {
         label: 'Image',
-        type: 'ImageBlock',
+        type: 'Image',
         props: {
             src: 'https://placehold.co/960x480?text=Spotex',
             alt: 'Immagine',

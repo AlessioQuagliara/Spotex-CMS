@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNode } from '@craftjs/core';
 
-export function ButtonBlock({ label, href, background, color, radius }) {
+export function ButtonBlock({ label, href, background, color, radius, variant }) {
     const {
         connectors: { connect, drag },
         selected,
@@ -13,11 +13,12 @@ export function ButtonBlock({ label, href, background, color, radius }) {
         <div ref={(ref) => connect(drag(ref))} className={selected ? 'ring-2 ring-blue-500 rounded-2xl inline-flex' : 'inline-flex'}>
             <a
                 href={href}
-                className="inline-flex items-center justify-center px-5 py-3 font-semibold transition"
+                className={`inline-flex items-center justify-center px-5 py-3 font-semibold transition ${variant === 'outline' ? 'border' : ''}`}
                 style={{
-                    background,
-                    color,
+                    background: variant === 'outline' ? 'transparent' : background,
+                    color: variant === 'outline' ? background : color,
                     borderRadius: `${radius}px`,
+                    borderColor: background,
                 }}
             >
                 {label}
@@ -27,12 +28,13 @@ export function ButtonBlock({ label, href, background, color, radius }) {
 }
 
 function ButtonSettings() {
-    const { actions: { setProp }, label, href, background, color, radius } = useNode((node) => ({
+    const { actions: { setProp }, label, href, background, color, radius, variant } = useNode((node) => ({
         label: node.data.props.label,
         href: node.data.props.href,
         background: node.data.props.background,
         color: node.data.props.color,
         radius: node.data.props.radius,
+        variant: node.data.props.variant,
     }));
 
     return (
@@ -54,6 +56,13 @@ function ButtonSettings() {
                 <input className="mt-1 w-full rounded border border-slate-300 px-3 py-2" value={color} onChange={(event) => setProp((props) => { props.color = event.target.value; })} />
             </label>
             <label className="block text-sm font-medium text-slate-700">
+                Variante
+                <select className="mt-1 w-full rounded border border-slate-300 px-3 py-2" value={variant} onChange={(event) => setProp((props) => { props.variant = event.target.value; })}>
+                    <option value="solid">Solid</option>
+                    <option value="outline">Outline</option>
+                </select>
+            </label>
+            <label className="block text-sm font-medium text-slate-700">
                 Radius
                 <input type="number" className="mt-1 w-full rounded border border-slate-300 px-3 py-2" value={radius} onChange={(event) => setProp((props) => { props.radius = Number(event.target.value) || 0; })} />
             </label>
@@ -62,15 +71,19 @@ function ButtonSettings() {
 }
 
 ButtonBlock.craft = {
-    displayName: 'ButtonBlock',
+    displayName: 'Button',
     props: {
         label: 'Scopri di piu',
         href: '#',
         background: '#0f172a',
         color: '#ffffff',
         radius: 999,
+        variant: 'solid',
     },
     related: {
         settings: ButtonSettings,
+    },
+    rules: {
+        canDrop: () => false,
     },
 };

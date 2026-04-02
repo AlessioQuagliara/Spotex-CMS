@@ -147,9 +147,13 @@ class PageBuilderController extends Controller
     {
         $document = [
             'ROOT' => [
-                'type' => ['resolvedName' => 'Canvas'],
+                'type' => ['resolvedName' => 'CraftRoot'],
                 'isCanvas' => true,
-                'props' => [],
+                'props' => [
+                    'background' => '#f8fafc',
+                    'padding' => 24,
+                    'width' => '100%',
+                ],
                 'displayName' => 'Root',
                 'custom' => [],
                 'hidden' => false,
@@ -164,18 +168,13 @@ class PageBuilderController extends Controller
             }
 
             $id = (string) ($element['id'] ?? uniqid('node_', true));
+            $type = $this->mapLegacyTypeToCraftType((string) ($element['type'] ?? 'text'));
+
             $document[$id] = [
-                'type' => ['resolvedName' => (string) ($element['type'] ?? 'LegacyBlock')],
-                'isCanvas' => false,
-                'props' => [
-                    'content' => $element['content'] ?? null,
-                    'styles' => is_array($element['styles'] ?? null) ? $element['styles'] : [],
-                    'x' => $element['x'] ?? 0,
-                    'y' => $element['y'] ?? 0,
-                    'width' => $element['width'] ?? null,
-                    'height' => $element['height'] ?? null,
-                ],
-                'displayName' => ucfirst((string) ($element['type'] ?? 'LegacyBlock')),
+                'type' => ['resolvedName' => $type],
+                'isCanvas' => $type === 'SectionBlock',
+                'props' => $this->mapLegacyElementProps($element, $type),
+                'displayName' => $type,
                 'custom' => [],
                 'hidden' => false,
                 'nodes' => [],
@@ -185,5 +184,74 @@ class PageBuilderController extends Controller
         }
 
         return $document;
+    }
+
+    private function mapLegacyTypeToCraftType(string $type): string
+    {
+        return match ($type) {
+            'button', 'Button', 'ButtonBlock' => 'ButtonBlock',
+            'image', 'Image', 'ImageBlock' => 'ImageBlock',
+            'container', 'section', 'Section', 'SectionBlock' => 'SectionBlock',
+            'product-grid', 'ProductGrid', 'ProductGridBlock' => 'ProductGridBlock',
+            'category-feed', 'CategoryFeed', 'CategoryFeedBlock' => 'CategoryFeedBlock',
+            'html-block', 'html', 'Html', 'HtmlBlock' => 'HtmlBlock',
+            default => 'TextBlock',
+        };
+    }
+
+    private function mapLegacyElementProps(array $element, string $type): array
+    {
+        $content = $element['content'] ?? null;
+        $styles = is_array($element['styles'] ?? null) ? $element['styles'] : [];
+
+        $contentValue = static function (string $key, mixed $default = null) use ($content): mixed {
+            if (is_array($content)) {
+                return $content[$key] ?? $default;
+            }
+
+            return $default;
+        };
+
+        $textContent = is_string($content)
+            ? $content
+            : (string) ($contentValue('text', $contentValue('html', 'Nuovo contenuto')) ?? 'Nuovo contenuto');
+
+        return match ($type) {
+            'HtmlBlock' => [
+                'html' => is_string($content)
+                    ? $content
+                    : (string) ($contentValue('html', $contentValue('text', '')) ?? ''),
+                'background' => (string) ($styles['backgroundColor'] ?? 'transparent'),
+                'padding' => $this->toInt($styles['padding'] ?? 0, 0),
+                'radius' => $this->toInt($styles['borderRadius'] ?? 0, 0),
+            ],
+            'ButtonBlock' => [
+                'label' => (string) ($contentValue('label', 'Call to action') ?? 'Call to action'),
+                'href' => (string) ($contentValue('href', '#') ?? '#'),
+                'background' => (string) ($styles['backgroundColor'] ?? '#0f172a'),
+                'color' => (string) ($styles['color'] ?? '#ffffff'),
+                'radius' => $this->toInt($styles['borderRadius'] ?? 999, 999),
+            ],
+            'ImageBlock' => [
+                'src' => (string) ($contentValue('src', 'https://placehold.co/800x400?text=Spotex') ?? 'https://placehold.co/800x400?text=Spotex'),
+                'alt' => (string) ($contentValue('alt', 'Immagine modulo') ?? 'Immagine modulo'),
+                'radius' => $this->toInt($styles['borderRadius'] ?? 24, 24),
+            ],
+            'SectionBlock' => [
+                'background' => (string) ($styles['backgroundColor'] ?? '#ffffff'),
+                'padding' => $this->toInt($styles['padding'] ?? 24, 24),
+                'radius' => $this->toInt($styles['borderRadius'] ?? 16, 16),
+            ],
+            default => [
+                'text' => $textContent,
+                'color' => (string) ($styles['color'] ?? '#111827'),
+                'fontSize' => $this->toInt($styles['fontSize'] ?? 18, 18),
+            ],
+        };
+    }
+
+    private function toInt(mixed $value, int $default): int
+    {
+        return is_numeric($value) ? (int) $value : $default;
     }
 }

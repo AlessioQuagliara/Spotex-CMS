@@ -121,4 +121,7 @@ ProductGridBlock.craft = {
     related: {
         settings: ProductGridSettings,
     },
+    rules: {
+        canDrop: () => false,
+    },
 };

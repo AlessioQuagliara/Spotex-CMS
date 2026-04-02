@@ -59,6 +59,7 @@ class BuilderDocumentRenderer
         return match ($resolvedName) {
             'CraftRoot' => $children,
             'SectionBlock' => $this->renderSection($props, $children),
+            'HtmlBlock' => $this->renderHtmlBlock($props),
             'ButtonBlock' => $this->renderButton($props),
             'ImageBlock' => $this->renderImage($props),
             'ProductGridBlock' => $this->renderProductGrid($props),
@@ -72,6 +73,8 @@ class BuilderDocumentRenderer
         return match ($type) {
             'Canvas' => 'CraftRoot',
             'Text' => 'TextBlock',
+            'html-block' => 'HtmlBlock',
+            'Html' => 'HtmlBlock',
             'Section' => 'SectionBlock',
             'Button' => 'ButtonBlock',
             'Image' => 'ImageBlock',
@@ -100,6 +103,25 @@ class BuilderDocumentRenderer
             $this->toInt($props['fontSize'] ?? 18, 18),
             nl2br($this->escape($props['text'] ?? '')),
         );
+    }
+
+    private function renderHtmlBlock(array $props): string
+    {
+        $content = $props['html'] ?? $props['content'] ?? '';
+
+        if (is_array($content)) {
+            $content = $content['html'] ?? $content['text'] ?? '';
+        }
+
+        if (!is_string($content)) {
+            return '';
+        }
+
+        $content = preg_replace('/<script\b[^>]*>(.*?)<\/script>/is', '', $content) ?? '';
+        $content = preg_replace('/\son[a-z]+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $content) ?? $content;
+        $content = preg_replace('/javascript\s*:/i', '', $content) ?? $content;
+
+        return trim($content);
     }
 
     private function renderButton(array $props): string

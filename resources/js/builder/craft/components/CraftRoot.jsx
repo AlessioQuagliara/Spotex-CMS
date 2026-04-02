@@ -56,4 +56,8 @@ CraftRoot.craft = {
     related: {
         settings: RootSettings,
     },
+    rules: {
+        canDrag: () => false,
+        canDrop: (incomingNodes) => incomingNodes.every((node) => node.data.type?.resolvedName !== 'CraftRoot'),
+    },
 };

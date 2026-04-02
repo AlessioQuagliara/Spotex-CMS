@@ -1,7 +1,23 @@
 import React from 'react';
-import { Element, useNode } from '@craftjs/core';
+import { useNode } from '@craftjs/core';
 
-export function SectionBlock({ background, padding, radius, border, children }) {
+function resolveHtml(html, content) {
+    if (typeof html === 'string') {
+        return html;
+    }
+
+    if (typeof content === 'string') {
+        return content;
+    }
+
+    if (content && typeof content === 'object') {
+        return content.html || content.text || '';
+    }
+
+    return '';
+}
+
+export function HtmlBlock({ html, content, background, padding, radius }) {
     const {
         connectors: { connect, drag },
         selected,
@@ -9,46 +25,60 @@ export function SectionBlock({ background, padding, radius, border, children }) 
         selected: node.events.selected,
     }));
 
+    const renderedHtml = resolveHtml(html, content);
+
     return (
-        <section
+        <div
             ref={(ref) => connect(drag(ref))}
-            className={`relative min-h-[160px] transition-shadow ${selected ? 'ring-2 ring-blue-500' : 'ring-1 ring-slate-200'}`}
+            className={`relative overflow-hidden ${selected ? 'ring-2 ring-blue-500' : 'ring-1 ring-slate-200'}`}
             style={{
                 background,
                 padding: `${padding}px`,
                 borderRadius: `${radius}px`,
-                border,
             }}
         >
-            <Element is={SectionContent} id="section-content" canvas>
-                {children}
-            </Element>
-        </section>
-    );
-}
-
-function SectionContent({ children }) {
-    const {
-        connectors: { connect },
-    } = useNode();
-
-    return (
-        <div ref={connect} className="grid gap-4 min-h-[100px]">
-            {children}
+            {renderedHtml ? (
+                <div
+                    className="pointer-events-none"
+                    dangerouslySetInnerHTML={{ __html: renderedHtml }}
+                />
+            ) : (
+                <p className="text-sm text-slate-400">Blocco HTML vuoto</p>
+            )}
         </div>
     );
 }
 
-function SectionSettings() {
-    const { actions: { setProp }, background, padding, radius, border } = useNode((node) => ({
+function HtmlSettings() {
+    const {
+        actions: { setProp },
+        html,
+        content,
+        background,
+        padding,
+        radius,
+    } = useNode((node) => ({
+        html: node.data.props.html,
+        content: node.data.props.content,
         background: node.data.props.background,
         padding: node.data.props.padding,
         radius: node.data.props.radius,
-        border: node.data.props.border,
     }));
+
+    const value = resolveHtml(html, content);
 
     return (
         <div className="space-y-3">
+            <label className="block text-sm font-medium text-slate-700">
+                HTML
+                <textarea
+                    className="mt-1 min-h-[180px] w-full rounded border border-slate-300 px-3 py-2 font-mono text-xs"
+                    value={value}
+                    onChange={(event) => setProp((props) => {
+                        props.html = event.target.value;
+                    })}
+                />
+            </label>
             <label className="block text-sm font-medium text-slate-700">
                 Background
                 <input
@@ -75,30 +105,22 @@ function SectionSettings() {
                     onChange={(event) => setProp((props) => { props.radius = Number(event.target.value) || 0; })}
                 />
             </label>
-            <label className="block text-sm font-medium text-slate-700">
-                Border
-                <input
-                    className="mt-1 w-full rounded border border-slate-300 px-3 py-2"
-                    value={border}
-                    onChange={(event) => setProp((props) => { props.border = event.target.value; })}
-                />
-            </label>
         </div>
     );
 }
 
-SectionBlock.craft = {
-    displayName: 'Container',
+HtmlBlock.craft = {
+    displayName: 'HtmlBlock',
     props: {
-        background: '#ffffff',
-        padding: 24,
-        radius: 16,
-        border: '1px solid #e2e8f0',
+        html: '<div>Nuovo blocco HTML</div>',
+        background: 'transparent',
+        padding: 0,
+        radius: 0,
     },
     related: {
-        settings: SectionSettings,
+        settings: HtmlSettings,
     },
     rules: {
-        canDrop: () => true,
+        canDrop: () => false,
     },
 };

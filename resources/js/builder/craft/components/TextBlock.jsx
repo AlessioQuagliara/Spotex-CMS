@@ -4,6 +4,7 @@ import { useNode } from '@craftjs/core';
 export function TextBlock({ text, color, fontSize }) {
     const {
         connectors: { connect, drag },
+        actions: { setProp },
         selected,
     } = useNode((node) => ({
         selected: node.events.selected,
@@ -14,6 +15,12 @@ export function TextBlock({ text, color, fontSize }) {
             ref={(ref) => connect(drag(ref))}
             className={`rounded-xl px-4 py-3 ${selected ? 'ring-2 ring-blue-500' : 'ring-1 ring-transparent'}`}
             style={{ color, fontSize: `${fontSize}px` }}
+            contentEditable
+            suppressContentEditableWarning
+            onBlur={(event) => {
+                const nextText = event.currentTarget.textContent || '';
+                setProp((props) => { props.text = nextText; });
+            }}
         >
             {text}
         </div>
@@ -59,7 +66,7 @@ function TextSettings() {
 }
 
 TextBlock.craft = {
-    displayName: 'TextBlock',
+    displayName: 'Text',
     props: {
         text: 'Testo del modulo',
         color: '#111827',
@@ -67,5 +74,8 @@ TextBlock.craft = {
     },
     related: {
         settings: TextSettings,
+    },
+    rules: {
+        canDrop: () => false,
     },
 };
