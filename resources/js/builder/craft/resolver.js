@@ -1,6 +1,7 @@
 import { ButtonBlock } from './components/ButtonBlock';
 import { CategoryFeedBlock } from './components/CategoryFeedBlock';
 import { CraftRoot } from './components/CraftRoot';
+import { HtmlBlock } from './components/HtmlBlock';
 import { ImageBlock } from './components/ImageBlock';
 import { ProductGridBlock } from './components/ProductGridBlock';
 import { SectionBlock } from './components/SectionBlock';
@@ -12,6 +13,7 @@ export const craftResolver = {
     TextBlock,
     ButtonBlock,
     ImageBlock,
+    HtmlBlock,
     ProductGridBlock,
     CategoryFeedBlock,
 };
@@ -53,6 +55,13 @@ export const toolboxComponents = [
             src: 'https://placehold.co/960x480?text=Spotex',
             alt: 'Immagine',
             radius: 24,
+        },
+    },
+    {
+        label: 'HTML',
+        type: 'HtmlBlock',
+        props: {
+            html: '<p>Nuovo blocco <strong>HTML</strong></p>',
         },
     },
     {
