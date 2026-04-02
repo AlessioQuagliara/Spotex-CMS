@@ -49,8 +49,9 @@ function resolveLegacyType(type) {
             return 'ImageBlock';
         case 'container':
             return 'SectionBlock';
-        case 'text':
         case 'html-block':
+            return 'HtmlBlock';
+        case 'text':
         default:
             return 'TextBlock';
     }
@@ -63,8 +64,13 @@ function mapLegacyProps(element = {}) {
         ? content
         : content.text || content.html || 'Nuovo contenuto';
 
+    const html = typeof content === 'string'
+        ? content
+        : content.html || '';
+
     return {
         text,
+        html,
         label: content.label || 'Call to action',
         href: content.href || '#',
         src: content.src || 'https://placehold.co/800x400?text=Spotex',

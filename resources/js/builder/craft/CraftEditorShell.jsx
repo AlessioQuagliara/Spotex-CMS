@@ -1,7 +1,6 @@
 import React from 'react';
-import { Editor, Frame, Element, useEditor } from '@craftjs/core';
+import { Editor, Frame, useEditor } from '@craftjs/core';
 import { craftResolver, toolboxComponents } from './resolver';
-import { CraftRoot } from './components/CraftRoot';
 import { PreviewCatalogProvider } from './context/PreviewCatalogContext';
 import { createDefaultDocument, legacyElementsToCraftDocument } from './utils/defaultDocument';
 import { craftDocumentToHtml, craftDocumentToLegacyElements } from './utils/serializeCraftDocument';
@@ -34,13 +33,11 @@ export default function CraftEditorShell({
         <PreviewCatalogProvider value={initialPreviewCatalog}>
             <Editor resolver={craftResolver} enabled onRender={RenderNode}>
                 <div className="flex h-screen flex-col bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.15),_transparent_42%),linear-gradient(180deg,_#f8fafc_0%,_#e2e8f0_100%)] text-slate-900">
-                    <Header pageTitle={pageTitle} pageSlug={pageSlug} schemaVersion={schemaVersion} initialModules={initialModules} initialMeta={initialMeta} initialElements={initialElements} />
+                    <Header pageTitle={pageTitle} pageSlug={pageSlug} schemaVersion={schemaVersion} initialModules={initialModules} initialMeta={initialMeta} />
                     <div className="grid flex-1 grid-cols-[280px_minmax(0,1fr)_320px] gap-4 overflow-hidden p-4">
                         <Toolbox />
                         <div className="overflow-auto rounded-[28px] border border-white/70 bg-white/60 p-6 backdrop-blur">
-                            <Frame data={document}>
-                                <Element is={CraftRoot} canvas />
-                            </Frame>
+                            <Frame data={document} />
                         </div>
                         <Inspector />
                     </div>
@@ -50,7 +47,7 @@ export default function CraftEditorShell({
     );
 }
 
-function Header({ pageTitle, pageSlug, schemaVersion, initialModules, initialMeta, initialElements }) {
+function Header({ pageTitle, pageSlug, schemaVersion, initialModules, initialMeta }) {
     const { actions, query } = useEditor();
     const [isSaving, setIsSaving] = React.useState(false);
 

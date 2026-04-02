@@ -1,5 +1,5 @@
 import React from 'react';
-import { Element, useNode } from '@craftjs/core';
+import { useNode } from '@craftjs/core';
 
 export function SectionBlock({ background, padding, radius, children }) {
     const {
@@ -12,29 +12,15 @@ export function SectionBlock({ background, padding, radius, children }) {
     return (
         <section
             ref={(ref) => connect(drag(ref))}
-            className={`relative min-h-[160px] transition-shadow ${selected ? 'ring-2 ring-blue-500' : 'ring-1 ring-slate-200'}`}
+            className={`relative grid min-h-[160px] gap-4 transition-shadow ${selected ? 'ring-2 ring-blue-500' : 'ring-1 ring-slate-200'}`}
             style={{
                 background,
                 padding: `${padding}px`,
                 borderRadius: `${radius}px`,
             }}
         >
-            <Element is={SectionContent} id="section-content" canvas>
-                {children}
-            </Element>
-        </section>
-    );
-}
-
-function SectionContent({ children }) {
-    const {
-        connectors: { connect },
-    } = useNode();
-
-    return (
-        <div ref={connect} className="grid gap-4 min-h-[100px]">
             {children}
-        </div>
+        </section>
     );
 }
 
@@ -84,6 +70,7 @@ SectionBlock.craft = {
         padding: 24,
         radius: 16,
     },
+    isCanvas: true,
     related: {
         settings: SectionSettings,
     },

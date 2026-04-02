@@ -46,6 +46,7 @@ function mapNodeToLegacyElement(document, nodeId, index) {
             href: props.href,
             src: props.src,
             alt: props.alt,
+            html: props.html,
         },
         styles: {
             backgroundColor: props.background,
@@ -85,6 +86,8 @@ function renderNode(document, nodeId) {
             return `<section data-module="category-feed"><h2>${escapeHtml(props.heading || 'Categorie in evidenza')}</h2><div>${escapeHtml(props.emptyText || 'Nessuna categoria disponibile.')}</div></section>`;
         case 'CraftRoot':
             return children;
+        case 'HtmlBlock':
+            return props.html || '';
         case 'TextBlock':
         default:
             return `<div style="color:${escapeHtml(props.color || '#111827')};font-size:${Number(props.fontSize || 18)}px;">${escapeHtml(props.text || '')}</div>`;
@@ -103,6 +106,8 @@ function mapCraftTypeToLegacyType(type) {
             return 'product-grid';
         case 'CategoryFeedBlock':
             return 'category-feed';
+        case 'HtmlBlock':
+            return 'html-block';
         case 'TextBlock':
         case 'CraftRoot':
         default:
