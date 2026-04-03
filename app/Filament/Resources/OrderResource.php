@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Models\Order;
+use Illuminate\Support\Facades\DB;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -200,21 +201,48 @@ class OrderResource extends Resource
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
                     ->requiresConfirmation()
-                    ->action(fn (Collection $records) => $records->each->update(['payment_status' => 'paid', 'paid_at' => now()])),
+                    ->action(function (Collection $records) {
+                        foreach ($records as $record) {
+                            DB::transaction(function () use ($record) {
+                                $order = Order::query()->lockForUpdate()->find($record->id);
+                                if ($order && $order->payment_status === 'pending') {
+                                    $order->markAsPaid('manual-' . $order->id, 'manual');
+                                }
+                            });
+                        }
+                    }),
                 
                 BulkAction::make('mark_as_shipped')
                     ->label('Segna come Spedito')
                     ->icon('heroicon-o-truck')
                     ->color('info')
                     ->requiresConfirmation()
-                    ->action(fn (Collection $records) => $records->each->update(['shipping_status' => 'shipped', 'shipped_at' => now()])),
+                    ->action(function (Collection $records) {
+                        DB::transaction(function () use ($records) {
+                            foreach ($records as $record) {
+                                $order = Order::query()->lockForUpdate()->find($record->id);
+                                if ($order && $order->payment_status === 'paid' && $order->shipping_status === 'not_shipped') {
+                                    $order->update(['shipping_status' => 'shipped', 'shipped_at' => now()]);
+                                }
+                            }
+                        });
+                    }),
                 
                 BulkAction::make('mark_as_delivered')
                     ->label('Segna come Consegnato')
                     ->icon('heroicon-o-check-badge')
                     ->color('success')
                     ->requiresConfirmation()
-                    ->action(fn (Collection $records) => $records->each->update(['shipping_status' => 'delivered', 'delivered_at' => now()])),
+                    ->action(function (Collection $records) {
+                        DB::transaction(function () use ($records) {
+                            foreach ($records as $record) {
+                                $order = Order::query()->lockForUpdate()->find($record->id);
+                                if ($order && $order->shipping_status === 'shipped') {
+                                    $order->update(['shipping_status' => 'delivered', 'delivered_at' => now()]);
+                                }
+                            }
+                        });
+                    }),
                 
                 BulkAction::make('update_payment_status')
                     ->label('Cambia Stato Pagamento')
@@ -231,12 +259,23 @@ class OrderResource extends Resource
                             ->required(),
                     ])
                     ->action(function (Collection $records, array $data) {
-                        $records->each(function ($record) use ($data) {
-                            $record->update(['payment_status' => $data['payment_status']]);
-                            if ($data['payment_status'] === 'paid' && !$record->paid_at) {
-                                $record->update(['paid_at' => now()]);
-                            }
-                        });
+                        foreach ($records as $record) {
+                            DB::transaction(function () use ($record, $data) {
+                                $order = Order::query()->lockForUpdate()->find($record->id);
+                                if (!$order) {
+                                    return;
+                                }
+                                if ($data['payment_status'] === 'paid' && $order->payment_status !== 'pending') {
+                                    return;
+                                }
+                                $update = ['payment_status' => $data['payment_status']];
+                                if ($data['payment_status'] === 'paid' && !$order->paid_at) {
+                                    $update['paid_at'] = now();
+                                    $update['status'] = 'paid';
+                                }
+                                $order->update($update);
+                            });
+                        }
                     }),
                 
                 BulkAction::make('update_shipping_status')
@@ -254,13 +293,20 @@ class OrderResource extends Resource
                             ->required(),
                     ])
                     ->action(function (Collection $records, array $data) {
-                        $records->each(function ($record) use ($data) {
-                            $record->update(['shipping_status' => $data['shipping_status']]);
-                            if ($data['shipping_status'] === 'shipped' && !$record->shipped_at) {
-                                $record->update(['shipped_at' => now()]);
-                            }
-                            if ($data['shipping_status'] === 'delivered' && !$record->delivered_at) {
-                                $record->update(['delivered_at' => now()]);
+                        DB::transaction(function () use ($records, $data) {
+                            foreach ($records as $record) {
+                                $order = Order::query()->lockForUpdate()->find($record->id);
+                                if (!$order) {
+                                    continue;
+                                }
+                                $update = ['shipping_status' => $data['shipping_status']];
+                                if ($data['shipping_status'] === 'shipped' && !$order->shipped_at) {
+                                    $update['shipped_at'] = now();
+                                }
+                                if ($data['shipping_status'] === 'delivered' && !$order->delivered_at) {
+                                    $update['delivered_at'] = now();
+                                }
+                                $order->update($update);
                             }
                         });
                     }),

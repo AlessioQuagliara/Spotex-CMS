@@ -5,10 +5,16 @@ $stackChannels = array_values(array_filter(array_map(
     explode(',', (string) env('LOG_STACK', 'single')),
 )));
 
+$deprecationsChannel = env('LOG_DEPRECATIONS_CHANNEL');
+
+if (!is_string($deprecationsChannel) || trim($deprecationsChannel) === '') {
+    $deprecationsChannel = 'deprecations';
+}
+
 return [
     'default' => env('LOG_CHANNEL', env('APP_LOG', 'single')),
 
-    'deprecations' => env('LOG_DEPRECATIONS_CHANNEL', 'deprecations'),
+    'deprecations' => $deprecationsChannel,
 
     'channels' => [
         'stack' => [

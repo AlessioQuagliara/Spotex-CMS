@@ -23,7 +23,7 @@ class BuilderDocumentRenderer
                 $document = is_array($page->builder_document) ? $page->builder_document : [];
                 $schemaVersion = trim((string) ($page->builder_schema_version ?? ''));
 
-                if ($schemaVersion !== '' && $document !== []) {
+                if ($document !== [] && $this->shouldRenderDocument($schemaVersion, $document)) {
                     return $this->renderDocument($document);
                 }
 
@@ -39,9 +39,44 @@ class BuilderDocumentRenderer
                     ];
                 }
 
-                return $this->renderDocument($document);
+                if ($document !== [] && $this->isCraftDocument($document)) {
+                    return $this->renderDocument($document);
+                }
+
+                return [
+                    'html' => '',
+                    'css' => '',
+                    'js' => '',
+                ];
             },
         );
+    }
+
+    private function shouldRenderDocument(string $schemaVersion, array $document): bool
+    {
+        if ($this->isGrapesSchema($schemaVersion, $document)) {
+            return false;
+        }
+
+        return $this->isCraftDocument($document);
+    }
+
+    private function isCraftDocument(array $document): bool
+    {
+        return isset($document['ROOT']) && is_array($document['ROOT']);
+    }
+
+    private function isGrapesSchema(string $schemaVersion, array $document): bool
+    {
+        if (str_starts_with($schemaVersion, 'grapesjs')) {
+            return true;
+        }
+
+        if (($document['type'] ?? null) === 'grapesjs') {
+            return true;
+        }
+
+        return isset($document['projectData']) || isset($document['pages']) || isset($document['styles']) || isset($document['assets']);
     }
 
     public function renderDocument(array $document): array

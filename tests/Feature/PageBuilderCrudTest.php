@@ -185,6 +185,51 @@ class PageBuilderCrudTest extends TestCase
         $response->assertDontSee('legacy render');
     }
 
+    public function test_public_page_renders_grapes_html_content_when_schema_is_grapesjs(): void
+    {
+        Page::query()->create([
+            'title' => 'Landing Grapes',
+            'slug' => 'landing-grapes',
+            'is_published' => true,
+            'builder_schema_version' => 'grapesjs-v1',
+            'builder_document' => [
+                'type' => 'grapesjs',
+                'projectData' => [
+                    'pages' => [],
+                    'styles' => [],
+                ],
+            ],
+            'html_content' => '<section><h2>Render pubblico Grapes</h2></section>',
+            'css_content' => '.landing-grapes{color:#111827;}',
+        ]);
+
+        $response = $this->get('/landing-grapes');
+
+        $response->assertOk();
+        $response->assertSee('Render pubblico Grapes');
+        $response->assertDontSee('Questa pagina non ha ancora contenuti.');
+    }
+
+    public function test_admin_banner_on_products_route_links_to_matching_page_editor(): void
+    {
+        $admin = User::factory()->create([
+            'is_admin' => true,
+        ]);
+
+        $shopPage = Page::query()->create([
+            'title' => 'Shop',
+            'slug' => 'shop',
+            'is_published' => true,
+            'html_content' => '<section>Shop page</section>',
+        ]);
+
+        $response = $this->actingAs($admin)->get('/prodotti');
+
+        $response->assertOk();
+        $response->assertSee('Modifica questa pagina');
+        $response->assertSee(route('pages.builder-v2', $shopPage));
+    }
+
     public function test_builder_save_requires_document_or_elements(): void
     {
         /** @var User $user */

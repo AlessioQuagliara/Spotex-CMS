@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\Address;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Facades\Auth;
 
 class CustomerDashboardController extends Controller
 {
@@ -77,7 +79,15 @@ class CustomerDashboardController extends Controller
      */
     public function profile()
     {
-        $user = auth()->user();
+        /** @var User $user */
+        $user = Auth::guard('customer')->user();
+
+        if ($user->first_name === null && $user->last_name === null && !empty($user->name)) {
+            $nameParts = preg_split('/\s+/', trim($user->name), 2) ?: [];
+            $user->first_name = $nameParts[0] ?? null;
+            $user->last_name = $nameParts[1] ?? null;
+        }
+
         return view('customer.profile', compact('user'));
     }
 
@@ -86,16 +96,70 @@ class CustomerDashboardController extends Controller
      */
     public function updateProfile(Request $request)
     {
-        $user = auth()->user();
+        /** @var User $user */
+        $user = Auth::guard('customer')->user();
 
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'profile_type' => 'required|in:private,company',
+            'first_name' => 'required_if:profile_type,private|nullable|string|max:120',
+            'last_name' => 'required_if:profile_type,private|nullable|string|max:120',
+            'name' => 'nullable|string|max:255',
             'email' => 'required|email|unique:users,email,' . $user->id,
+            'phone' => 'nullable|string|max:30',
+            'birth_date' => 'nullable|date|before_or_equal:today',
+            'gender' => 'nullable|in:male,female,other,undisclosed',
+            'birth_city' => 'nullable|string|max:120',
+            'birth_province' => 'nullable|string|max:8',
+            'nationality' => 'nullable|string|size:2',
+            'tax_code' => 'nullable|string|max:32',
+            'vat_number' => 'nullable|string|max:32',
+            'company_name' => 'required_if:profile_type,company|nullable|string|max:255',
+            'company_legal_form' => 'nullable|string|max:80',
+            'pec' => 'nullable|email|max:255',
+            'sdi_code' => 'nullable|string|max:16',
+            'billing_address' => 'nullable|string|max:255',
+            'billing_city' => 'nullable|string|max:120',
+            'billing_province' => 'nullable|string|max:8',
+            'billing_postal_code' => 'nullable|string|max:20',
+            'billing_country' => 'nullable|string|size:2',
         ]);
+
+        $validated['email'] = strtolower(trim((string) $validated['email']));
+        $validated['nationality'] = strtoupper(trim((string) ($validated['nationality'] ?? '')));
+        $validated['billing_country'] = strtoupper(trim((string) ($validated['billing_country'] ?? '')));
+        $validated['tax_code'] = strtoupper(trim((string) ($validated['tax_code'] ?? '')));
+        $validated['vat_number'] = strtoupper(trim((string) ($validated['vat_number'] ?? '')));
+        $validated['sdi_code'] = strtoupper(trim((string) ($validated['sdi_code'] ?? '')));
+
+        $profileName = trim((string) $validated['name']);
+
+        if (($validated['profile_type'] ?? 'private') === 'company') {
+            $profileName = trim((string) ($validated['company_name'] ?? ''));
+        } else {
+            $profileName = trim((string) (($validated['first_name'] ?? '') . ' ' . ($validated['last_name'] ?? '')));
+        }
+
+        if ($profileName !== '') {
+            $validated['name'] = $profileName;
+        }
+
+        $emailChanged = $validated['email'] !== $user->email;
+
+        if ($emailChanged) {
+            $validated['email_verified_at'] = null;
+        }
 
         $user->update($validated);
 
-        return back()->with('success', 'Profilo aggiornato con successo!');
+        if ($emailChanged) {
+            $user->sendEmailVerificationNotification();
+        }
+
+        $message = $emailChanged
+            ? 'Profilo aggiornato. Abbiamo inviato una nuova email di verifica.'
+            : 'Profilo aggiornato con successo!';
+
+        return back()->with('success', $message);
     }
 
     /**
@@ -103,7 +167,7 @@ class CustomerDashboardController extends Controller
      */
     public function addresses()
     {
-        $user = auth()->user();
+        $user = Auth::guard('customer')->user();
         $shippingAddresses = $user->addresses()->where('type', 'shipping')->get();
         $billingAddresses = $user->addresses()->where('type', 'billing')->get();
 
@@ -123,7 +187,7 @@ class CustomerDashboardController extends Controller
      */
     public function storeAddress(Request $request)
     {
-        $user = auth()->user();
+        $user = Auth::guard('customer')->user();
 
         $validated = $request->validate([
             'type' => 'required|in:shipping,billing',
@@ -139,6 +203,8 @@ class CustomerDashboardController extends Controller
             'tax_id' => 'nullable|string|max:20',
             'is_default' => 'boolean',
         ]);
+
+        $validated['is_default'] = $request->boolean('is_default');
 
         if ($validated['is_default']) {
             $user->addresses()->where('type', $validated['type'])->update(['is_default' => false]);
@@ -180,6 +246,8 @@ class CustomerDashboardController extends Controller
             'tax_id' => 'nullable|string|max:20',
             'is_default' => 'boolean',
         ]);
+
+        $validated['is_default'] = $request->boolean('is_default');
 
         if ($validated['is_default']) {
             $address->user->addresses()

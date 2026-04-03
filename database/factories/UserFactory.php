@@ -18,11 +18,16 @@ class UserFactory extends Factory
     {
         return [
             'name' => fake()->name(),
+            'first_name' => fake()->firstName(),
+            'last_name' => fake()->lastName(),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => Hash::make('password'),
             'remember_token' => Str::random(10),
             'is_admin' => false,
+            'role' => User::ROLE_CUSTOMER,
+            'profile_type' => 'private',
+            'is_banned' => false,
         ];
     }
 
@@ -30,6 +35,7 @@ class UserFactory extends Factory
     {
         return $this->state(fn () => [
             'is_admin' => true,
+            'role' => User::ROLE_ADMIN,
         ]);
     }
 }

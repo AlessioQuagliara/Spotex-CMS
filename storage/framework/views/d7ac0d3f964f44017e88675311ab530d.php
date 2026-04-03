@@ -14,6 +14,7 @@
     $businessPoweredBy = Setting::get('business_powered_by', 'Spotex CMS');
     $theme = ThemeService::getTheme();
     $pages = \App\Models\Page::where('is_published', true)->get();
+    $allPages = \App\Models\Page::query()->get();
     $colors = Setting::get('colors', []);
     $navBg = $colors['secondary'] ?? $theme['navbar']['background_color'] ?? '#1F2937';
     $navText = $theme['navbar']['text_color'] ?? '#FFFFFF';
@@ -22,6 +23,60 @@
     $cartItems = session()->get('cart', []);
     $cartCount = array_reduce($cartItems, fn($total, $item) => $total + (int)($item['quantity'] ?? 0), 0);
     $cartSubtotal = array_reduce($cartItems, fn($total, $item) => $total + ((float)($item['price'] ?? 0) * (int)($item['quantity'] ?? 0)), 0);
+    $customerUser = auth('customer')->user();
+    $adminUser = auth('admin')->user();
+    $backofficeUser = $adminUser;
+
+    if (!$backofficeUser && $customerUser && $customerUser->isBackofficeUser()) {
+        $backofficeUser = $customerUser;
+    }
+
+    $resolvedPageForEditor = isset($page) && $page instanceof \App\Models\Page ? $page : null;
+    $currentRouteName = request()->route()?->getName();
+    $currentPath = trim((string) request()->path(), '/');
+
+    if (!$resolvedPageForEditor) {
+        $slugCandidates = [];
+        $titleCandidates = [];
+
+        if ($currentPath !== '' && !str_contains($currentPath, '/')) {
+            $slugCandidates[] = $currentPath;
+        }
+
+        if ($currentRouteName === 'home') {
+            $slugCandidates = array_merge($slugCandidates, ['', 'home', 'home-seo']);
+            $titleCandidates[] = 'Home';
+        }
+
+        if (in_array($currentRouteName, ['products', 'category.show', 'product.show'], true)) {
+            $slugCandidates = array_merge($slugCandidates, ['prodotti', 'products', 'shop', 'catalogo']);
+            $titleCandidates = array_merge($titleCandidates, ['Prodotti', 'Shop', 'Catalogo']);
+        }
+
+        foreach (array_values(array_unique($slugCandidates)) as $slugCandidate) {
+            $resolvedPageForEditor = $allPages->first(fn ($candidatePage) => (string) $candidatePage->slug === (string) $slugCandidate);
+            if ($resolvedPageForEditor) {
+                break;
+            }
+        }
+
+        if (!$resolvedPageForEditor) {
+            foreach (array_values(array_unique($titleCandidates)) as $titleCandidate) {
+                $resolvedPageForEditor = $allPages->first(fn ($candidatePage) => (string) $candidatePage->title === (string) $titleCandidate);
+                if ($resolvedPageForEditor) {
+                    break;
+                }
+            }
+        }
+    }
+
+    $editorTargetUrl = $resolvedPageForEditor
+        ? route('pages.builder-v2', $resolvedPageForEditor)
+        : route('filament.admin.resources.pages.index');
+    $editorTargetLabel = $resolvedPageForEditor
+        ? 'Modifica questa pagina'
+        : 'Apri Pagine nel CMS';
+    $showEditorBanner = $backofficeUser && $backofficeUser->isBackofficeUser();
 ?>
 
 <!DOCTYPE html>
@@ -36,11 +91,16 @@
     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($businessFavicon): ?>
         <link rel="icon" href="<?php echo e(asset('storage/' . $businessFavicon)); ?>" type="image/x-icon">
     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
-    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(file_exists(public_path('build/manifest.json'))): ?>
+    <?php
+        $hasViteManifest = file_exists(public_path('build/manifest.json'));
+        $disableTailwindRuntime = trim((string) $__env->yieldContent('disable_tailwind_runtime')) !== '';
+    ?>
+
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($hasViteManifest): ?>
         <?php echo app('Illuminate\Foundation\Vite')(['resources/css/app.css', 'resources/js/app.js']); ?>
     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
-    <?php if (! empty(trim($__env->yieldContent('tailwind_runtime')))): ?>
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(!$disableTailwindRuntime): ?>
         <script src="https://cdn.tailwindcss.com"></script>
     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
     <style>
@@ -48,16 +108,18 @@
             --color-primary: <?php echo e($colors['primary'] ?? $theme['colors']['primary'] ?? '#3B82F6'); ?>;
             --color-secondary: <?php echo e($colors['secondary'] ?? $theme['colors']['secondary'] ?? '#1F2937'); ?>;
             --color-accent: <?php echo e($colors['accent'] ?? $theme['colors']['accent'] ?? '#F59E0B'); ?>;
+            --layout-nav-height: 80px;
+            --layout-editor-banner-height: 0px;
         }
         .bg-theme-primary { background-color: var(--color-primary); }
         .bg-theme-secondary { background-color: var(--color-secondary); }
         .bg-theme-accent { background-color: var(--color-accent); }
-        body { padding-top: 70px; }
+        body { padding-top: calc(var(--layout-nav-height) + var(--layout-editor-banner-height)); }
     </style>
 </head>
 <body class="bg-white">
     <!-- Navigation -->
-    <nav class="fixed top-0 left-0 right-0 shadow-lg z-50" style="background-color: <?php echo e($navBg); ?>; color: <?php echo e($navText); ?>;">
+    <nav id="main-nav" class="fixed top-0 left-0 right-0 shadow-lg z-50" style="background-color: <?php echo e($navBg); ?>; color: <?php echo e($navText); ?>;">
         <div class="container mx-auto px-4 py-4">
             <div class="flex items-center justify-between">
                 <!-- Logo Section -->
@@ -161,7 +223,7 @@
                             </div>
                         </div>
 
-                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(auth()->guard()->check()): ?>
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($customerUser): ?>
                             <div class="relative group">
                                 <button class="p-2 rounded hover:opacity-80 transition" title="Il mio account">
                                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -171,16 +233,16 @@
 
                                 <div class="hidden group-hover:block absolute right-0 w-48 bg-white text-gray-800 rounded shadow-lg py-2 z-20">
                                     <div class="px-4 py-2 text-sm text-gray-500 border-b">
-                                        <?php echo e(auth()->user()->name); ?>
+                                        <?php echo e($customerUser->name); ?>
 
                                     </div>
-                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(!auth()->user()->hasVerifiedEmail()): ?>
+                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(!$customerUser->hasVerifiedEmail()): ?>
                                         <div class="px-4 py-2 text-xs bg-yellow-50 text-yellow-800 border-b">
                                             ⚠️ Email non verificata
                                         </div>
                                     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
-                                    <a href="#" class="block px-4 py-2 hover:bg-gray-100">Il mio profilo</a>
-                                    <a href="#" class="block px-4 py-2 hover:bg-gray-100">I miei ordini</a>
+                                    <a href="<?php echo e(route('customer.profile')); ?>" class="block px-4 py-2 hover:bg-gray-100">Il mio profilo</a>
+                                    <a href="<?php echo e(route('customer.orders')); ?>" class="block px-4 py-2 hover:bg-gray-100">I miei ordini</a>
                                     <form method="POST" action="<?php echo e(route('logout')); ?>" class="block">
                                         <?php echo csrf_field(); ?>
                                         <button type="submit" class="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600">Logout</button>
@@ -237,15 +299,15 @@
                 <a href="<?php echo e(route('products')); ?>" class="block px-4 py-2 rounded hover:opacity-80 transition">Cerca</a>
                 <a href="<?php echo e(route('cart.show')); ?>" class="block px-4 py-2 rounded hover:opacity-80 transition">Carrello</a>
                 
-                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(auth()->guard()->check()): ?>
+                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($customerUser): ?>
                     <div class="border-t pt-2 mt-2">
-                        <div class="px-4 py-2 text-sm font-medium"><?php echo e(auth()->user()->name); ?></div>
-                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(!auth()->user()->hasVerifiedEmail()): ?>
+                        <div class="px-4 py-2 text-sm font-medium"><?php echo e($customerUser->name); ?></div>
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(!$customerUser->hasVerifiedEmail()): ?>
                             <div class="px-4 py-1 text-xs bg-yellow-50 text-yellow-800">⚠️ Email non verificata</div>
                         <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
-                        <a href="#" class="block px-4 py-2 rounded hover:opacity-80 transition">Il mio profilo</a>
-                        <a href="#" class="block px-4 py-2 rounded hover:opacity-80 transition">I miei ordini</a>
-                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(auth()->user()->is_admin ?? false): ?>
+                        <a href="<?php echo e(route('customer.profile')); ?>" class="block px-4 py-2 rounded hover:opacity-80 transition">Il mio profilo</a>
+                        <a href="<?php echo e(route('customer.orders')); ?>" class="block px-4 py-2 rounded hover:opacity-80 transition">I miei ordini</a>
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($showEditorBanner): ?>
                             <a href="/admin" class="block px-4 py-2 rounded hover:opacity-80 transition">Pannello Admin</a>
                         <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                         <form method="POST" action="<?php echo e(route('logout')); ?>">
@@ -254,6 +316,9 @@
                         </form>
                     </div>
                 <?php else: ?>
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($showEditorBanner): ?>
+                        <a href="/admin" class="block px-4 py-2 rounded hover:opacity-80 transition">Pannello Admin</a>
+                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     <a href="<?php echo e(route('login')); ?>" class="block px-4 py-2 rounded hover:opacity-80 transition">Accedi</a>
                     <a href="<?php echo e(route('register')); ?>" class="block px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition text-center">Registrati</a>
                 <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
@@ -261,39 +326,28 @@
         </div>
     </nav>
 
-    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(auth()->guard()->check()): ?>
-        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(auth()->user()->is_admin ?? false): ?>
-            <!-- Edit Mode Banner -->
-            <div class="bg-blue-600 text-white shadow-lg sticky top-0 z-40">
-                <div class="container mx-auto px-4 py-3">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                            <span class="font-medium">Pagina in visualizzazione</span>
-                        </div>
-                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(isset($page) && $page->id): ?>
-                            <a href="/admin/pages/<?php echo e($page->id); ?>/builder" class="flex items-center gap-2 bg-white text-blue-600 px-4 py-2 rounded hover:bg-blue-50 transition font-medium text-sm">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                                Modifica questa pagina
-                            </a>
-                        <?php else: ?>
-                            <a href="/admin" class="flex items-center gap-2 bg-white text-blue-600 px-4 py-2 rounded hover:bg-blue-50 transition font-medium text-sm">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                </svg>
-                                Vai al Pannello Admin
-                            </a>
-                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($showEditorBanner): ?>
+        <!-- Edit Mode Banner -->
+        <div id="editor-banner" class="bg-blue-600 text-white shadow-lg fixed left-0 right-0 z-40" style="top: var(--layout-nav-height);">
+            <div class="container mx-auto px-4 py-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        <span class="font-medium">Pagina in visualizzazione</span>
                     </div>
+                    <a href="<?php echo e($editorTargetUrl); ?>" class="flex items-center gap-2 bg-white text-blue-600 px-4 py-2 rounded hover:bg-blue-50 transition font-medium text-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        <?php echo e($editorTargetLabel); ?>
+
+                    </a>
                 </div>
             </div>
-        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+        </div>
     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
     <!-- Main Content -->
@@ -377,6 +431,22 @@
     </footer>
 
     <script>
+        const applyLayoutOffsets = () => {
+            const root = document.documentElement;
+            const nav = document.getElementById('main-nav');
+            const banner = document.getElementById('editor-banner');
+
+            const navHeight = nav ? nav.offsetHeight : 80;
+            const bannerHeight = banner ? banner.offsetHeight : 0;
+
+            root.style.setProperty('--layout-nav-height', `${navHeight}px`);
+            root.style.setProperty('--layout-editor-banner-height', `${bannerHeight}px`);
+        };
+
+        applyLayoutOffsets();
+        window.addEventListener('resize', applyLayoutOffsets);
+        window.addEventListener('load', applyLayoutOffsets);
+
         const formatEuro = (value) => {
             return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(value || 0);
         };

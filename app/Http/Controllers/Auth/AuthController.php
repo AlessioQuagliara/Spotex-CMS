@@ -17,7 +17,7 @@ class AuthController extends Controller
      */
     public function showRegister()
     {
-        if (Auth::check()) {
+        if (Auth::guard('customer')->check()) {
             return redirect()->route('home');
         }
         
@@ -47,11 +47,12 @@ class AuthController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'is_admin' => false,
+            'role' => User::ROLE_CUSTOMER,
         ]);
 
         event(new Registered($user));
 
-        Auth::login($user);
+        Auth::guard('customer')->login($user);
 
         return redirect()->route('verification.notice')->with('success', 'Registrazione completata! Controlla la tua email per verificare l\'account.');
     }
@@ -61,7 +62,7 @@ class AuthController extends Controller
      */
     public function showLogin()
     {
-        if (Auth::check()) {
+        if (Auth::guard('customer')->check()) {
             return redirect()->route('home');
         }
         
@@ -83,9 +84,25 @@ class AuthController extends Controller
         ]);
 
         $remember = $request->boolean('remember');
+        $email = strtolower(trim((string) ($credentials['email'] ?? '')));
+        $credentials['email'] = $email;
+        $user = User::query()->where('email', $email)->first();
 
-        if (Auth::attempt($credentials, $remember)) {
+        if ($user && $user->is_banned) {
+            return back()->withErrors([
+                'email' => 'Il tuo account è stato sospeso. Contatta il supporto per assistenza.',
+            ])->onlyInput('email');
+        }
+
+        if (Auth::guard('customer')->attempt($credentials, $remember)) {
             $request->session()->regenerate();
+
+            /** @var User|null $loggedUser */
+            $loggedUser = Auth::guard('customer')->user();
+
+            if ($loggedUser?->isBackofficeUser()) {
+                return redirect()->intended('/admin')->with('success', 'Login effettuato con successo!');
+            }
 
             return redirect()->intended('/')->with('success', 'Login effettuato con successo!');
         }
@@ -100,7 +117,7 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
-        Auth::logout();
+        Auth::guard('customer')->logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
@@ -113,7 +130,13 @@ class AuthController extends Controller
      */
     public function showVerificationNotice()
     {
-        return Auth::user()->hasVerifiedEmail()
+        $user = Auth::guard('customer')->user();
+
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        return $user->hasVerifiedEmail()
             ? redirect()->route('home')
             : view('auth.verify-email');
     }

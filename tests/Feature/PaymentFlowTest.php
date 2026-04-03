@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use Tests\TestCase;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\Order;
 use App\Models\User;
@@ -216,6 +217,33 @@ class PaymentFlowTest extends TestCase
 
         $product->refresh();
         $this->assertSame(0, $product->stock);
+    }
+
+    /**
+     * Test che markAsPaid decrementa lo stock dei prodotti dell'ordine
+     */
+    public function test_mark_as_paid_decrements_product_stock(): void
+    {
+        /** @var \App\Models\User $user */
+        $user = User::factory()->create();
+        $product = Product::factory()->create(['stock' => 10, 'price' => 25.00]);
+
+        $order = Order::factory()->create([
+            'user_id' => $user->id,
+            'payment_status' => 'pending',
+        ]);
+
+        OrderItem::create([
+            'order_id' => $order->id,
+            'product_id' => $product->id,
+            'quantity' => 3,
+            'unit_price' => $product->price,
+            'subtotal' => $product->price * 3,
+        ]);
+
+        $order->markAsPaid('txn_test_stock_123', 'stripe');
+
+        $this->assertSame(7, $product->fresh()->stock);
     }
 
     /**

@@ -2,11 +2,22 @@
 
 return [
     'defaults' => [
-        'guard' => 'web',
+        'guard' => 'customer',
         'passwords' => 'users',
     ],
 
     'guards' => [
+        'customer' => [
+            'driver' => 'session',
+            'provider' => 'users',
+        ],
+
+        'admin' => [
+            'driver' => 'session',
+            'provider' => 'users',
+        ],
+
+        // Alias di compatibilità per codice legacy/tests che usa ancora "web".
         'web' => [
             'driver' => 'session',
             'provider' => 'users',
@@ -34,4 +45,10 @@ return [
     'verification' => [
         'throttle' => 60,
     ],
+
+    'invitations' => [
+        'expires_hours' => (int) env('USER_INVITATION_EXPIRES_HOURS', 72),
+    ],
+
+    'admin_session_cookie' => env('ADMIN_SESSION_COOKIE', 'spotex_admin_session'),
 ];

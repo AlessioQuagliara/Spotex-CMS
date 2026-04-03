@@ -2,6 +2,7 @@
 
 namespace App\Filament;
 
+use App\Http\Middleware\UseAdminSessionCookie;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
@@ -25,6 +26,7 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
+            ->authGuard('admin')
             ->login()
             ->colors([
                 'primary' => Color::Slate,
@@ -46,6 +48,7 @@ class AdminPanelProvider extends PanelProvider
                 \App\Filament\Widgets\MonthlySalesChart::class,
             ])
             ->middleware([
+                UseAdminSessionCookie::class,
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,

@@ -12,6 +12,7 @@ use App\Http\Controllers\PageModuleController;
 use App\Http\Controllers\PageTemplateController;
 use App\Http\Controllers\Api\CouponController;
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\InvitationController;
 use App\Http\Controllers\CustomerDashboardController;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 
@@ -22,14 +23,14 @@ Route::get('/prodotto/{product:slug}', [ProductController::class, 'show'])->name
 Route::post('/prodotto/{product:slug}/recensioni', [ProductController::class, 'storeReview'])->name('product.reviews.store');
 
 // Carrello
-Route::post('/carrello/aggiungi', [CartController::class, 'add'])->name('cart.add');
+Route::post('/carrello/aggiungi', [CartController::class, 'add'])->name('cart.add')->middleware('throttle:30,1');
 Route::get('/carrello', [CartController::class, 'show'])->name('cart.show');
-Route::post('/carrello/aggiorna', [CartController::class, 'update'])->name('cart.update');
-Route::post('/carrello/rimuovi', [CartController::class, 'remove'])->name('cart.remove');
+Route::post('/carrello/aggiorna', [CartController::class, 'update'])->name('cart.update')->middleware('throttle:60,1');
+Route::post('/carrello/rimuovi', [CartController::class, 'remove'])->name('cart.remove')->middleware('throttle:60,1');
 
 // Checkout (pubblico)
 Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
-Route::post('/checkout/crea-ordine', [CheckoutController::class, 'createOrder'])->name('checkout.create');
+Route::post('/checkout/crea-ordine', [CheckoutController::class, 'createOrder'])->name('checkout.create')->middleware('throttle:10,1');
 
 // API pubblica
 Route::get('/api/coupons', [CouponController::class, 'list']);
@@ -48,21 +49,31 @@ Route::post('/registrati', [AuthController::class, 'register'])->name('register.
 Route::get('/accedi', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/accedi', [AuthController::class, 'login'])->name('login.post');
 
+// Invito utenti CMS
+Route::get('/invito/{token}', [InvitationController::class, 'show'])
+    ->middleware('guest')
+    ->name('invitation.accept');
+Route::post('/invito/{token}', [InvitationController::class, 'accept'])
+    ->middleware('guest')
+    ->name('invitation.accept.store');
+
 // Logout
-Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth:customer');
 
 // Email Verification
 Route::get('/email/verifica', [AuthController::class, 'showVerificationNotice'])
-    ->middleware('auth')
+    ->middleware('auth:customer')
     ->name('verification.notice');
 
 Route::get('/email/verifica/{id}/{hash}', function (EmailVerificationRequest $request) {
     $request->fulfill();
-    return redirect()->route('home')->with('success', 'Email verificata con successo!');
-})->middleware(['auth', 'signed'])->name('verification.verify');
+    $request->user()->refresh();
+
+    return redirect()->route('customer.dashboard')->with('success', 'Email verificata con successo!');
+})->middleware(['auth:customer', 'signed'])->name('verification.verify');
 
 Route::post('/email/verifica/invia', [AuthController::class, 'resendVerificationEmail'])
-    ->middleware(['auth', 'throttle:6,1'])
+    ->middleware(['auth:customer', 'throttle:6,1'])
     ->name('verification.send');
 
 // ========================================
@@ -72,7 +83,7 @@ Route::post('/email/verifica/invia', [AuthController::class, 'resendVerification
 // ========================================
 // DASHBOARD CLIENTE (protetto)
 // ========================================
-Route::middleware(['auth', 'verified'])->prefix('/account')->name('customer.')->group(function () {
+Route::middleware(['auth:customer'])->prefix('/account')->name('customer.')->group(function () {
     // Dashboard principale
     Route::get('/', [CustomerDashboardController::class, 'index'])->name('dashboard');
     
@@ -100,7 +111,7 @@ Route::middleware(['auth', 'verified'])->prefix('/account')->name('customer.')->
 // ========================================
 
 // Builder per pagine (protetto da autenticazione admin)
-Route::middleware('auth')->group(function () {
+Route::middleware('auth:admin,customer')->group(function () {
     // Builder v1 (legacy - Blade + React CDN)
     Route::get('/admin/pages/{page}/builder', [PageBuilderController::class, 'show'])->name('pages.builder');
     
@@ -122,15 +133,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/pages/code/list', [PageCodeController::class, 'list'])->name('pages.code.list');
     Route::get('/admin/pages/{page}/code/show', [PageCodeController::class, 'show'])->name('pages.code.show');
     Route::post('/admin/pages/{page}/code/save', [PageCodeController::class, 'save'])->name('pages.code.save');
-
-    // Pagamenti
-    Route::post('/pagamento/stripe/checkout', [PaymentController::class, 'initializeStripeCheckout'])->name('payment.stripe.checkout');
-    Route::post('/pagamento/paypal/checkout', [PaymentController::class, 'initializePayPalCheckout'])->name('payment.paypal.checkout');
-    Route::post('/pagamento/paypal/capture', [PaymentController::class, 'capturePayPalOrder'])->name('payment.paypal.capture');
-    
-    Route::get('/checkout/success/{order}', [PaymentController::class, 'checkoutSuccess'])->name('checkout.success');
-    Route::get('/checkout/cancel/{order}', [PaymentController::class, 'checkoutCancel'])->name('checkout.cancel');
 });
+
+// Pagamenti checkout (pubblici con throttle)
+Route::post('/pagamento/stripe/checkout', [PaymentController::class, 'initializeStripeCheckout'])->name('payment.stripe.checkout')->middleware('throttle:10,1');
+Route::post('/pagamento/paypal/checkout', [PaymentController::class, 'initializePayPalCheckout'])->name('payment.paypal.checkout')->middleware('throttle:10,1');
+Route::post('/pagamento/paypal/capture', [PaymentController::class, 'capturePayPalOrder'])->name('payment.paypal.capture')->middleware('throttle:10,1');
+
+Route::get('/checkout/success/{order}', [PaymentController::class, 'checkoutSuccess'])->name('checkout.success');
+Route::get('/checkout/cancel/{order}', [PaymentController::class, 'checkoutCancel'])->name('checkout.cancel');
 
 // Pagine builder (rotta catch-all alla fine)
 Route::get('/{page:slug}', [FrontendPageController::class, 'show'])->name('page.show');

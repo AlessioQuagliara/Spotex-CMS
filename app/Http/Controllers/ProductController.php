@@ -4,13 +4,37 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\Category;
+use App\Models\Page;
 use App\Models\Review;
+use App\Services\Builder\BuilderDocumentRenderer;
 use Illuminate\Http\Request;
 
 class ProductController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, ?BuilderDocumentRenderer $renderer = null)
     {
+        $renderer ??= app(BuilderDocumentRenderer::class);
+
+        if (!$request->has('category')) {
+            $productsPage = Page::query()
+                ->where('slug', 'prodotti')
+                ->where('is_published', true)
+                ->first();
+
+            if ($productsPage) {
+                $renderedPage = $renderer->renderPage($productsPage);
+                $hasRenderableContent = trim((string) ($renderedPage['html'] ?? '')) !== ''
+                    || trim((string) ($productsPage->html_content ?? '')) !== '';
+
+                if ($hasRenderableContent) {
+                    return view('pages.show', [
+                        'page' => $productsPage,
+                        'renderedPage' => $renderedPage,
+                    ]);
+                }
+            }
+        }
+
         $query = Product::where('is_active', true);
         $selectedCategory = null;
 

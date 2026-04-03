@@ -10,7 +10,7 @@ return [
     'table' => 'sessions',
     'store' => null,
     'lottery' => [2, 100],
-    'cookie' => env('SESSION_COOKIE', 'LARAVEL_SESSION'),
+    'cookie' => env('SESSION_COOKIE', 'spotex_customer_session'),
     'path' => '/',
     'domain' => env('SESSION_DOMAIN', null),
     'secure' => env('SESSION_SECURE_COOKIES', false),
