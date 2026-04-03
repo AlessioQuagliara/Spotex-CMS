@@ -14,6 +14,8 @@ return Application::configure(basePath: dirname(__DIR__))
         App\Filament\AdminPanelProvider::class,
     ])
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->prependToGroup('web', App\Http\Middleware\UseAdminSessionCookie::class);
+
         $middleware->alias([
             'log-webhook' => App\Http\Middleware\LogWebhook::class,
         ]);
