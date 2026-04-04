@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 
 class PaymentFlowTest extends TestCase
 {
@@ -20,6 +21,7 @@ class PaymentFlowTest extends TestCase
         parent::setUp();
         $this->withoutMiddleware(VerifyCsrfToken::class);
         $this->withoutMiddleware(ValidateCsrfToken::class);
+        $this->withoutMiddleware(ThrottleRequests::class);
         $this->seed();
     }
 

@@ -46,7 +46,12 @@
                     @foreach($order->items as $item)
                         <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
                             <div class="flex-1">
-                                <p class="font-semibold text-gray-800">{{ $item->product->name }}</p>
+                                <p class="font-semibold text-gray-800">
+                                    {{ $item->variant?->product?->name ?? $item->product?->name ?? 'Prodotto' }}
+                                    @if(!empty($item->variant?->sku))
+                                        <span class="text-sm text-gray-500">({{ $item->variant->sku }})</span>
+                                    @endif
+                                </p>
                                 <p class="text-sm text-gray-500">Quantità: {{ $item->quantity }}</p>
                             </div>
                             <p class="font-semibold">€{{ number_format($item->subtotal, 2, ',', '.') }}</p>

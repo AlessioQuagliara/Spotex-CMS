@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Order;
+use App\Models\Store;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -18,6 +19,7 @@ class OrderFactory extends Factory
         $total = fake()->randomFloat(2, 20, 2000);
 
         return [
+            'store_id' => Store::query()->value('id'),
             'user_id' => User::factory(),
             'status' => 'pending',
             'payment_status' => 'pending',
@@ -29,6 +31,9 @@ class OrderFactory extends Factory
             'discount_code' => null,
             'shipping_method' => 'standard',
             'total' => $total,
+            'currency' => 'EUR',
+            'fx_rate' => 1,
+            'tax_total' => 0,
             'payment_method' => null,
             'shipping_address' => fake()->address(),
             'billing_address' => fake()->address(),

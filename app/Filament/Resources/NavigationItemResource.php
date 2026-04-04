@@ -7,12 +7,14 @@ use App\Models\NavigationItem;
 use App\Models\Page;
 use App\Models\Category;
 use App\Models\Product;
+use App\Support\Tenancy\TenantContext;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Tables\Columns\TextColumn;
+use Illuminate\Database\Eloquent\Builder;
 
 class NavigationItemResource extends Resource
 {
@@ -198,6 +200,18 @@ class NavigationItemResource extends Resource
         ];
     }
 
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $storeId = static::currentStoreId();
+
+        if ($storeId === null) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where('store_id', $storeId);
+    }
+
     public static function getPages(): array
     {
         return [
@@ -206,5 +220,16 @@ class NavigationItemResource extends Resource
             'edit' => Pages\EditNavigationItem::route('/{record}/edit'),
         ];
     }
-}
 
+    protected static function currentStoreId(): ?int
+    {
+        if (!app()->bound(TenantContext::class)) {
+            return null;
+        }
+
+        /** @var TenantContext $context */
+        $context = app(TenantContext::class);
+
+        return $context->storeId();
+    }
+}

@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\PageResource\Pages;
 use App\Filament\Resources\PageResource\RelationManagers;
 use App\Models\Page;
+use App\Support\Tenancy\TenantContext;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -12,6 +13,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Validation\Rules\Unique;
 
 class PageResource extends Resource
 {
@@ -34,7 +36,10 @@ class PageResource extends Resource
                     Forms\Components\TextInput::make('slug')
                         ->label('Slug URL')
                         ->required()
-                        ->unique(ignoreRecord: true),
+                        ->unique(
+                            ignoreRecord: true,
+                            modifyRuleUsing: fn (Unique $rule) => $rule->where('store_id', static::currentStoreId())
+                        ),
                 ])->columns(2),
 
                 Forms\Components\Section::make('SEO')->schema([
@@ -119,6 +124,18 @@ class PageResource extends Resource
         ];
     }
 
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $storeId = static::currentStoreId();
+
+        if ($storeId === null) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where('store_id', $storeId);
+    }
+
     public static function getPages(): array
     {
         return [
@@ -126,5 +143,17 @@ class PageResource extends Resource
             'create' => Pages\CreatePage::route('/create'),
             'edit' => Pages\EditPage::route('/{record}/edit'),
         ];
+    }
+
+    protected static function currentStoreId(): ?int
+    {
+        if (!app()->bound(TenantContext::class)) {
+            return null;
+        }
+
+        /** @var TenantContext $context */
+        $context = app(TenantContext::class);
+
+        return $context->storeId();
     }
 }

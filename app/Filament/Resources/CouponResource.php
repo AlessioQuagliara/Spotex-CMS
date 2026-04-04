@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\CouponResource\Pages;
 use App\Filament\Resources\CouponResource\RelationManagers;
 use App\Models\Coupon;
+use App\Support\Tenancy\TenantContext;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -12,6 +13,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Validation\Rules\Unique;
 
 class CouponResource extends Resource
 {
@@ -30,7 +32,10 @@ class CouponResource extends Resource
                         Forms\Components\TextInput::make('code')
                             ->label('Codice')
                             ->required()
-                            ->unique()
+                            ->unique(
+                                ignoreRecord: true,
+                                modifyRuleUsing: fn (Unique $rule) => $rule->where('store_id', static::currentStoreId())
+                            )
                             ->columnSpanFull(),
                         Forms\Components\Select::make('type')
                             ->label('Tipo')
@@ -136,6 +141,18 @@ class CouponResource extends Resource
         ];
     }
 
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $storeId = static::currentStoreId();
+
+        if ($storeId === null) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where('store_id', $storeId);
+    }
+
     public static function getPages(): array
     {
         return [
@@ -143,5 +160,17 @@ class CouponResource extends Resource
             'create' => Pages\CreateCoupon::route('/create'),
             'edit' => Pages\EditCoupon::route('/{record}/edit'),
         ];
+    }
+
+    protected static function currentStoreId(): ?int
+    {
+        if (!app()->bound(TenantContext::class)) {
+            return null;
+        }
+
+        /** @var TenantContext $context */
+        $context = app(TenantContext::class);
+
+        return $context->storeId();
     }
 }

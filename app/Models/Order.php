@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToStore;
+use App\Services\Inventory\InventoryReservationService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,8 +13,10 @@ use Illuminate\Support\Facades\DB;
 class Order extends Model
 {
     use HasFactory;
+    use BelongsToStore;
 
     protected $fillable = [
+        'store_id',
         'user_id',
         'status',
         'payment_status',
@@ -24,6 +28,9 @@ class Order extends Model
         'discount_code',
         'shipping_method',
         'total',
+        'currency',
+        'fx_rate',
+        'tax_total',
         'payment_method',
         'shipping_address',
         'billing_address',
@@ -42,6 +49,7 @@ class Order extends Model
         'commission_amount',
         'provider_payment_id',
         'provider_event_id',
+        'inventory_reservation_expires_at',
     ];
 
     protected $casts = [
@@ -49,9 +57,12 @@ class Order extends Model
         'shipping_cost' => 'decimal:2',
         'discount_amount' => 'decimal:2',
         'total' => 'decimal:2',
+        'fx_rate' => 'decimal:6',
+        'tax_total' => 'decimal:2',
         'paid_at' => 'datetime',
         'shipped_at' => 'datetime',
         'delivered_at' => 'datetime',
+        'inventory_reservation_expires_at' => 'datetime',
         'payment_status' => 'string',
         'shipping_status' => 'string',
     ];
@@ -61,9 +72,19 @@ class Order extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function store(): BelongsTo
+    {
+        return $this->belongsTo(Store::class);
+    }
+
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function inventoryReservations(): HasMany
+    {
+        return $this->hasMany(InventoryReservation::class);
     }
 
     public function isPaid(): bool
@@ -111,7 +132,12 @@ class Order extends Model
 
         $this->update($payload);
 
-        // Decrementa lo stock per ogni prodotto dell'ordine, con lock row-level.
+        $convertedReservations = app(InventoryReservationService::class)->convertReservationsToSale($this);
+        if ($convertedReservations > 0) {
+            return;
+        }
+
+        // Fallback legacy: decrementa stock prodotto se non ci sono reservation attive.
         foreach ($this->items as $item) {
             if (!$item->product_id) {
                 continue;
@@ -130,7 +156,7 @@ class Order extends Model
     /**
      * Segna l'ordine come spedito
      */
-    public function markAsShipped(string $trackingNumber = null): void
+    public function markAsShipped(?string $trackingNumber = null): void
     {
         $this->update([
             'shipping_status' => 'shipped',

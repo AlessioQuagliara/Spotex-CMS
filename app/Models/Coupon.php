@@ -2,12 +2,17 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToStore;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Coupon extends Model
 {
+    use BelongsToStore;
+
     protected $fillable = [
+        'store_id',
         'code',
         'type',
         'value',
@@ -40,6 +45,11 @@ class Coupon extends Model
         );
     }
 
+    public function store(): BelongsTo
+    {
+        return $this->belongsTo(Store::class);
+    }
+
     public function isValid(): bool
     {
         if (!$this->is_active) return false;
@@ -65,4 +75,3 @@ class Coupon extends Model
         return (float) $this->value;
     }
 }
-

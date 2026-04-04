@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Models\Order;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Select;
@@ -20,6 +21,7 @@ use Filament\Tables\Actions\BulkActionGroup;
 use Filament\Tables\Actions\BulkAction;
 use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Builder;
 
 class OrderResource extends Resource
 {
@@ -314,11 +316,35 @@ class OrderResource extends Resource
         ]);
     }
 
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $storeId = static::currentStoreId();
+
+        if ($storeId === null) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where('store_id', $storeId);
+    }
+
     public static function getPages(): array
     {
         return [
             'index' => \App\Filament\Resources\OrderResource\Pages\ListOrders::route('/'),
             'edit' => \App\Filament\Resources\OrderResource\Pages\EditOrder::route('/{record}/edit'),
         ];
+    }
+
+    protected static function currentStoreId(): ?int
+    {
+        if (!app()->bound(TenantContext::class)) {
+            return null;
+        }
+
+        /** @var TenantContext $context */
+        $context = app(TenantContext::class);
+
+        return $context->storeId();
     }
 }

@@ -4,13 +4,19 @@ namespace App\Services\Builder;
 
 use App\Models\Category;
 use App\Models\Product;
+use App\Support\Tenancy\TenantContext;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 
 class BuilderPreviewCatalog
 {
+    public function __construct(private readonly TenantContext $tenantContext)
+    {
+    }
+
     public function build(): array
     {
-        $categories = Category::query()
+        $categories = $this->applyStoreScope(Category::query())
             ->withCount(['products' => fn ($builder) => $builder->where('is_active', true)])
             ->orderBy('order')
             ->orderBy('name')
@@ -27,7 +33,7 @@ class BuilderPreviewCatalog
             ->values()
             ->all();
 
-        $products = Product::query()
+        $products = $this->applyStoreScope(Product::query())
             ->where('is_active', true)
             ->with(['category:id,name,slug', 'primaryImage:id,product_id,image_path,alt_text'])
             ->latest('id')
@@ -66,5 +72,20 @@ class BuilderPreviewCatalog
         }
 
         return asset('storage/' . ltrim($path, '/'));
+    }
+
+    private function applyStoreScope(Builder $query): Builder
+    {
+        $storeId = $this->tenantContext->storeId();
+
+        if ($storeId === null) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $builder) use ($storeId): void {
+            $builder
+                ->where('store_id', $storeId)
+                ->orWhereNull('store_id');
+        });
     }
 }

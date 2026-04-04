@@ -25,16 +25,31 @@ class StripeService
      */
     public function createCheckoutSession(Order $order): string
     {
+        $order->loadMissing([
+            'items.product.primaryImage',
+            'items.variant.product.primaryImage',
+        ]);
+
+        $currency = strtolower(trim((string) ($order->currency ?? 'EUR')));
+        if (strlen($currency) !== 3) {
+            $currency = 'eur';
+        }
+
         $lineItems = [];
 
         foreach ($order->items as $item) {
+            $product = $item->variant?->product ?? $item->product;
+            $productName = $product?->name ?? 'Prodotto';
+            $variantSuffix = $item->variant?->sku ? (' - ' . $item->variant->sku) : '';
+            $productImage = $product?->primaryImage?->image_path;
+
             $lineItems[] = [
                 'price_data' => [
-                    'currency' => 'eur',
+                    'currency' => $currency,
                     'product_data' => [
-                        'name' => $item->product->name,
-                        'images' => $item->product->primaryImage 
-                            ? [asset('storage/' . $item->product->primaryImage->image_path)]
+                        'name' => $productName . $variantSuffix,
+                        'images' => $productImage
+                            ? [asset('storage/' . $productImage)]
                             : [],
                     ],
                     'unit_amount' => intval($item->unit_price * 100),

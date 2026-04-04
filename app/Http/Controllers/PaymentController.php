@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Jobs\ProcessPayPalWebhook;
 use App\Jobs\ProcessStripeWebhook;
+use App\Models\InventoryReservation;
 use App\Models\Order;
+use App\Services\Inventory\InventoryReservationService;
 use App\Services\PayPalService;
 use App\Services\StripeService;
 use App\Services\Webhooks\WebhookEventManager;
@@ -17,7 +19,8 @@ class PaymentController extends Controller
     public function __construct(
         protected StripeService $stripeService,
         protected PayPalService $paypalService,
-        protected WebhookEventManager $webhookEventManager
+        protected WebhookEventManager $webhookEventManager,
+        protected InventoryReservationService $inventoryReservationService,
     ) {}
 
     /**
@@ -218,6 +221,8 @@ class PaymentController extends Controller
      */
     public function checkoutSuccess(Order $order)
     {
+        session()->forget('checkout_order_id');
+
         return view('checkout.success', ['order' => $order]);
     }
 
@@ -226,6 +231,16 @@ class PaymentController extends Controller
      */
     public function checkoutCancel(Order $order)
     {
+        if ($order->payment_status === 'pending') {
+            $this->inventoryReservationService->releaseForOrder(
+                $order,
+                InventoryReservation::STATUS_RELEASED,
+                'checkout_cancelled'
+            );
+        }
+
+        session()->forget('checkout_order_id');
+
         return view('checkout.cancel', ['order' => $order]);
     }
 

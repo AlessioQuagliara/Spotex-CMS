@@ -12,14 +12,19 @@ class PayPalOrderPayloadBuilder
 
     public function build(Order $order, array $purchaseUnitOverrides = []): array
     {
+        $currency = strtoupper(trim((string) ($order->currency ?? 'EUR')));
+        if (strlen($currency) !== 3) {
+            $currency = 'EUR';
+        }
+
         $purchaseUnit = [
             'reference_id' => (string) $order->id,
             'amount' => [
-                'currency_code' => 'EUR',
+                'currency_code' => $currency,
                 'value' => $this->formatMoney((float) $order->total),
                 'breakdown' => [
                     'item_total' => [
-                        'currency_code' => 'EUR',
+                        'currency_code' => $currency,
                         'value' => $this->formatMoney((float) $order->total),
                     ],
                 ],
@@ -46,12 +51,17 @@ class PayPalOrderPayloadBuilder
 
     private function buildItems(Order $order): array
     {
-        return $order->items->map(function ($item) {
+        $currency = strtoupper(trim((string) ($order->currency ?? 'EUR')));
+        if (strlen($currency) !== 3) {
+            $currency = 'EUR';
+        }
+
+        return $order->items->map(function ($item) use ($currency) {
             return [
                 'name' => $item->product->name,
                 'sku' => (string) $item->product->id,
                 'unit_amount' => [
-                    'currency_code' => 'EUR',
+                    'currency_code' => $currency,
                     'value' => $this->formatMoney((float) $item->unit_price),
                 ],
                 'quantity' => (int) $item->quantity,

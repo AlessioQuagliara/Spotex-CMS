@@ -3,7 +3,9 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\UserResource\Pages;
+use App\Models\Store;
 use App\Models\User;
+use App\Support\Tenancy\TenantContext;
 use App\Notifications\UserInvitationNotification;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -13,6 +15,7 @@ use Filament\Tables;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -43,9 +46,9 @@ class UserResource extends Resource
                             ->unique(ignoreRecord: true),
                         Forms\Components\Select::make('role')
                             ->label('Ruolo')
-                            ->options(User::roleOptions())
+                            ->options(User::backofficeRoleOptions())
                             ->required()
-                            ->default(User::ROLE_CUSTOMER),
+                            ->default(User::ROLE_EDITOR),
                     ])
                     ->columns(2),
 
@@ -95,14 +98,8 @@ class UserResource extends Resource
                 Tables\Columns\TextColumn::make('role')
                     ->label('Ruolo')
                     ->badge()
-                    ->formatStateUsing(fn (string $state): string => User::roleOptions()[$state] ?? $state)
-                    ->color(fn (string $state): string => match ($state) {
-                        User::ROLE_OWNER => 'danger',
-                        User::ROLE_ADMIN => 'warning',
-                        User::ROLE_EDITOR => 'info',
-                        User::ROLE_VIEWER => 'success',
-                        default => 'gray',
-                    })
+                    ->formatStateUsing(fn (?string $state, User $record): string => static::roleLabel(static::roleInCurrentAccount($record) ?? (string) $state))
+                    ->color(fn (?string $state, User $record): string => static::roleColor(static::roleInCurrentAccount($record) ?? (string) $state))
                     ->sortable(),
                 Tables\Columns\IconColumn::make('is_admin')
                     ->label('Admin')
@@ -151,37 +148,39 @@ class UserResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('role')
                     ->label('Ruolo')
-                    ->options(User::roleOptions()),
+                    ->options(User::backofficeRoleOptions()),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Action::make('change_role')
                     ->label('Cambia ruolo')
                     ->icon('heroicon-o-shield-check')
-                    ->visible(fn (User $record): bool => !$record->hasRole(User::ROLE_OWNER))
+                    ->visible(fn (User $record): bool => static::roleInCurrentAccount($record) !== User::ROLE_OWNER)
                     ->form([
                         Forms\Components\Select::make('role')
                             ->label('Ruolo')
-                            ->options(User::roleOptions())
+                            ->options(User::backofficeRoleOptions())
                             ->required(),
                     ])
                     ->fillForm(fn (User $record): array => [
-                        'role' => $record->role,
+                        'role' => static::roleInCurrentAccount($record) ?? $record->role,
                     ])
                     ->action(function (User $record, array $data): void {
-                        $record->role = (string) $data['role'];
+                        $role = (string) $data['role'];
+                        $record->role = $role;
                         $record->save();
+                        static::syncMembershipRole($record, $role, static::currentActor());
 
                         Notification::make()
                             ->title('Ruolo aggiornato')
-                            ->body("Nuovo ruolo: {$record->role}")
+                            ->body("Nuovo ruolo: {$role}")
                             ->success()
                             ->send();
                     }),
                 Action::make('resend_invitation')
                     ->label('Invia/Reinvia invito')
                     ->icon('heroicon-o-paper-airplane')
-                    ->visible(fn (User $record): bool => !$record->hasRole(User::ROLE_OWNER))
+                    ->visible(fn (User $record): bool => static::roleInCurrentAccount($record) !== User::ROLE_OWNER)
                     ->requiresConfirmation()
                     ->action(function (User $record): void {
                         static::sendInvitation($record, static::currentActor());
@@ -196,7 +195,7 @@ class UserResource extends Resource
                     ->label('Sospendi')
                     ->color('danger')
                     ->icon('heroicon-o-no-symbol')
-                    ->visible(fn (User $record): bool => !$record->is_banned && static::currentActor()?->id !== $record->id && !$record->hasRole(User::ROLE_OWNER))
+                    ->visible(fn (User $record): bool => !$record->is_banned && static::currentActor()?->id !== $record->id && static::roleInCurrentAccount($record) !== User::ROLE_OWNER)
                     ->form([
                         Forms\Components\Textarea::make('reason')
                             ->label('Motivazione sospensione')
@@ -237,7 +236,7 @@ class UserResource extends Resource
                             ->send();
                     }),
                 Tables\Actions\DeleteAction::make()
-                    ->visible(fn (User $record): bool => static::currentActor()?->id !== $record->id && !$record->hasRole(User::ROLE_OWNER)),
+                    ->visible(fn (User $record): bool => static::currentActor()?->id !== $record->id && static::roleInCurrentAccount($record) !== User::ROLE_OWNER),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -248,7 +247,18 @@ class UserResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->orderBy('id');
+        $query = parent::getEloquentQuery()->select('users.*');
+        $accountId = static::currentAccountId();
+
+        if ($accountId === null) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query
+            ->join('account_users', 'account_users.user_id', '=', 'users.id')
+            ->where('account_users.account_id', $accountId)
+            ->where('account_users.status', 'active')
+            ->orderBy('users.id');
     }
 
     public static function canViewAny(): bool
@@ -274,13 +284,15 @@ class UserResource extends Resource
 
         return (static::currentActor()?->canManageUsers() ?? false)
             && static::currentActor()?->id !== $record->id
-            && !$record->hasRole(User::ROLE_OWNER);
+            && static::roleInCurrentAccount($record) !== User::ROLE_OWNER;
     }
 
-    public static function sendInvitation(User $user, ?User $inviter = null): void
+    public static function sendInvitation(User $user, ?User $inviter = null, ?string $role = null): void
     {
         $token = static::generateInvitationToken();
         $expiresHours = max(1, (int) config('auth.invitations.expires_hours', 72));
+        $resolvedRole = $role ?? static::roleInCurrentAccount($user) ?? $user->role;
+        static::syncMembershipRole($user, (string) $resolvedRole, $inviter);
 
         $user->fill([
             'invited_by_id' => $inviter?->id,
@@ -288,6 +300,7 @@ class UserResource extends Resource
             'invitation_expires_at' => now()->addHours($expiresHours),
             'invitation_accepted_at' => null,
             'password' => $user->password ?: Hash::make(Str::random(40)),
+            'role' => $resolvedRole,
         ]);
         $user->save();
 
@@ -306,6 +319,101 @@ class UserResource extends Resource
     public static function shouldRegisterNavigation(): bool
     {
         return static::canViewAny();
+    }
+
+    public static function syncMembershipRole(User $user, string $role, ?User $actor = null): void
+    {
+        $accountId = static::currentAccountId();
+        if ($accountId === null) {
+            return;
+        }
+
+        $resolvedRole = in_array($role, array_keys(User::backofficeRoleOptions()), true)
+            ? $role
+            : User::ROLE_VIEWER;
+
+        $existing = DB::table('account_users')
+            ->where('account_id', $accountId)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if ($existing) {
+            DB::table('account_users')
+                ->where('account_id', $accountId)
+                ->where('user_id', $user->id)
+                ->update([
+                    'role' => $resolvedRole,
+                    'status' => 'active',
+                    'updated_at' => now(),
+                ]);
+        } else {
+            DB::table('account_users')->insert([
+                'account_id' => $accountId,
+                'user_id' => $user->id,
+                'role' => $resolvedRole,
+                'status' => 'active',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+    }
+
+    public static function roleInCurrentAccount(User $user): ?string
+    {
+        $accountId = static::currentAccountId();
+        if ($accountId === null) {
+            return null;
+        }
+
+        return $user->roleForAccount($accountId);
+    }
+
+    public static function roleLabel(string $role): string
+    {
+        return User::roleOptions()[$role] ?? $role;
+    }
+
+    public static function roleColor(string $role): string
+    {
+        return match ($role) {
+            User::ROLE_OWNER => 'danger',
+            User::ROLE_ADMIN => 'warning',
+            User::ROLE_EDITOR => 'info',
+            User::ROLE_VIEWER => 'success',
+            default => 'gray',
+        };
+    }
+
+    public static function currentStoreId(): ?int
+    {
+        if (!app()->bound(TenantContext::class)) {
+            return null;
+        }
+
+        /** @var TenantContext $context */
+        $context = app(TenantContext::class);
+
+        return $context->storeId();
+    }
+
+    public static function currentAccountId(): ?int
+    {
+        $storeId = static::currentStoreId();
+        if ($storeId !== null) {
+            $accountId = Store::query()
+                ->withoutGlobalScopes()
+                ->where('id', $storeId)
+                ->value('account_id');
+
+            return is_numeric($accountId) ? (int) $accountId : null;
+        }
+
+        $accountId = Store::query()
+            ->withoutGlobalScopes()
+            ->orderBy('id')
+            ->value('account_id');
+
+        return is_numeric($accountId) ? (int) $accountId : null;
     }
 
     private static function currentActor(): ?User

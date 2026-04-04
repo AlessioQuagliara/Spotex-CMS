@@ -5,12 +5,17 @@ namespace App\Services\Builder;
 use App\Models\Category;
 use App\Models\Page;
 use App\Models\Product;
+use App\Support\Tenancy\TenantContext;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class BuilderDocumentRenderer
 {
-    public function __construct(private readonly BuilderRenderCache $cache)
+    public function __construct(
+        private readonly BuilderRenderCache $cache,
+        private readonly TenantContext $tenantContext
+    )
     {
     }
 
@@ -261,7 +266,7 @@ class BuilderDocumentRenderer
 
     private function resolveProducts(array $props)
     {
-        $query = Product::query()
+        $query = $this->applyStoreScope(Product::query())
             ->where('is_active', true)
             ->with(['category:id,name,slug', 'primaryImage:id,product_id,image_path,alt_text']);
 
@@ -286,7 +291,8 @@ class BuilderDocumentRenderer
 
     private function resolveCategories(array $props)
     {
-        $query = Category::query()->withCount(['products' => fn ($builder) => $builder->where('is_active', true)]);
+        $query = $this->applyStoreScope(Category::query())
+            ->withCount(['products' => fn ($builder) => $builder->where('is_active', true)]);
 
         $parentId = $this->nullableInt($props['parentCategoryId'] ?? null);
 
@@ -327,5 +333,20 @@ class BuilderDocumentRenderer
     private function escape(mixed $value): string
     {
         return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+    }
+
+    private function applyStoreScope(Builder $query): Builder
+    {
+        $storeId = $this->tenantContext->storeId();
+
+        if ($storeId === null) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $builder) use ($storeId): void {
+            $builder
+                ->where('store_id', $storeId)
+                ->orWhereNull('store_id');
+        });
     }
 }

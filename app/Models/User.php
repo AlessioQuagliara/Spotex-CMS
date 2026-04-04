@@ -4,12 +4,16 @@ namespace App\Models;
 
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class User extends Authenticatable implements MustVerifyEmail, FilamentUser
 {
@@ -73,6 +77,13 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
         'invitation_accepted_at' => 'datetime',
     ];
 
+    /**
+     * Cache locale role membership per account (request lifecycle).
+     *
+     * @var array<int, string|null>
+     */
+    private array $accountRoleCache = [];
+
     protected static function booted(): void
     {
         static::saving(function (self $user): void {
@@ -93,6 +104,10 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
             if (!$user->is_banned) {
                 $user->banned_at = null;
             }
+        });
+
+        static::created(function (self $user): void {
+            $user->ensureDefaultBackofficeMembership();
         });
     }
 
@@ -123,18 +138,86 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
         return $this->belongsTo(self::class, 'invited_by_id');
     }
 
+    public function accounts(): BelongsToMany
+    {
+        return $this->belongsToMany(Account::class, 'account_users')
+            ->withPivot(['role', 'status'])
+            ->withTimestamps();
+    }
+
+    public function ownedAccounts(): HasMany
+    {
+        return $this->hasMany(Account::class, 'owner_user_id');
+    }
+
     public function canAccessPanel(Panel $panel): bool
     {
         return $this->isBackofficeUser() && !$this->is_banned;
     }
 
-    public function isBackofficeUser(): bool
+    public static function backofficeRoles(): array
     {
-        return in_array($this->role, [self::ROLE_OWNER, self::ROLE_ADMIN, self::ROLE_EDITOR, self::ROLE_VIEWER], true);
+        return [self::ROLE_OWNER, self::ROLE_ADMIN, self::ROLE_EDITOR, self::ROLE_VIEWER];
     }
 
-    public function canManageUsers(): bool
+    public function roleForAccount(?int $accountId = null): ?string
     {
+        if ($accountId === null) {
+            return null;
+        }
+
+        if (array_key_exists($accountId, $this->accountRoleCache)) {
+            return $this->accountRoleCache[$accountId];
+        }
+
+        $role = $this->accounts()
+            ->where('accounts.id', $accountId)
+            ->first()
+            ?->pivot
+            ?->role;
+
+        $this->accountRoleCache[$accountId] = is_string($role) ? $role : null;
+
+        return $this->accountRoleCache[$accountId];
+    }
+
+    public function roleForStore(?int $storeId = null): ?string
+    {
+        $resolvedStoreId = $storeId ?? $this->currentStoreId();
+        if ($resolvedStoreId === null) {
+            return null;
+        }
+
+        $accountId = Store::query()
+            ->withoutGlobalScopes()
+            ->where('id', $resolvedStoreId)
+            ->value('account_id');
+
+        return is_numeric($accountId) ? $this->roleForAccount((int) $accountId) : null;
+    }
+
+    public function effectiveRole(?int $storeId = null): string
+    {
+        return $this->roleForStore($storeId) ?? (string) $this->role;
+    }
+
+    public function isBackofficeUser(?int $storeId = null): bool
+    {
+        $resolvedStoreId = $storeId ?? $this->currentStoreId();
+        if ($resolvedStoreId !== null) {
+            return in_array((string) $this->roleForStore($resolvedStoreId), self::backofficeRoles(), true);
+        }
+
+        return in_array($this->role, self::backofficeRoles(), true);
+    }
+
+    public function canManageUsers(?int $storeId = null): bool
+    {
+        $resolvedStoreId = $storeId ?? $this->currentStoreId();
+        if ($resolvedStoreId !== null) {
+            return in_array((string) $this->roleForStore($resolvedStoreId), [self::ROLE_OWNER, self::ROLE_ADMIN], true);
+        }
+
         return in_array($this->role, [self::ROLE_OWNER, self::ROLE_ADMIN], true);
     }
 
@@ -174,5 +257,53 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
     public function getProfileLabel(): string
     {
         return $this->profile_type === 'company' ? 'Azienda' : 'Privato';
+    }
+
+    private function currentStoreId(): ?int
+    {
+        if (!app()->bound(TenantContext::class)) {
+            return null;
+        }
+
+        /** @var TenantContext $context */
+        $context = app(TenantContext::class);
+
+        return $context->storeId();
+    }
+
+    private function ensureDefaultBackofficeMembership(): void
+    {
+        if (!in_array((string) $this->role, self::backofficeRoles(), true)) {
+            return;
+        }
+
+        if (
+            !Schema::hasTable('accounts')
+            || !Schema::hasTable('account_users')
+            || !Schema::hasTable('stores')
+        ) {
+            return;
+        }
+
+        if ($this->accounts()->exists()) {
+            return;
+        }
+
+        $accountId = DB::table('stores')
+            ->orderBy('id')
+            ->value('account_id');
+
+        if (!is_numeric($accountId)) {
+            return;
+        }
+
+        DB::table('account_users')->insert([
+            'account_id' => (int) $accountId,
+            'user_id' => $this->id,
+            'role' => $this->role,
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 }

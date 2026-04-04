@@ -383,6 +383,10 @@
                             <span class="text-gray-600">Spedizione</span>
                             <span id="shipping" class="font-medium text-black">€0,00</span>
                         </div>
+                        <div class="flex justify-between text-sm" id="taxContainer" style="display: none;">
+                            <span class="text-gray-600">Tasse</span>
+                            <span id="tax" class="font-medium text-black">€0,00</span>
+                        </div>
                         <div class="flex justify-between text-sm" id="discountContainer" style="display: none;">
                             <span class="text-gray-600">Sconto</span>
                             <span id="discount" class="font-medium text-green-600">-€0,00</span>
@@ -505,7 +509,7 @@
 </div>
 
 <script src="https://js.stripe.com/v3/"></script>
-<script src="https://www.paypal.com/sdk/js?client-id={{ env('PAYPAL_CLIENT_ID') }}&currency=EUR"></script>
+<script src="https://www.paypal.com/sdk/js?client-id={{ env('PAYPAL_CLIENT_ID') }}&currency={{ strtoupper($checkoutCurrency ?? $order->currency ?? 'EUR') }}"></script>
 
 <script type="application/json" id="cart-data">@json($cart ?? [])</script>
 <script type="application/json" id="order-id">@json($order->id ?? null)</script>
@@ -523,6 +527,8 @@ let elements = null;
 let cardElement = null;
 let currentTotal = 0;
 let appliedDiscount = null;
+let checkoutCurrency = @json(strtoupper($checkoutCurrency ?? $order->currency ?? 'EUR'));
+let serverTaxEstimate = parseFloat(@json((float) ($order->tax_total ?? 0)));
 
 // Hide navbar and footer
 document.body.classList.add('checkout-page');
@@ -534,6 +540,31 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeEventListeners();
     updateTotalPreview();
 });
+
+function formatMoney(amount) {
+    const safeAmount = Number.isFinite(amount) ? amount : 0;
+
+    try {
+        return new Intl.NumberFormat('it-IT', {
+            style: 'currency',
+            currency: checkoutCurrency,
+        }).format(safeAmount);
+    } catch (error) {
+        return '€' + safeAmount.toFixed(2).replace('.', ',');
+    }
+}
+
+function parseMoney(text) {
+    if (!text) return 0;
+
+    const cleaned = String(text)
+        .replace(/[^\d,.-]/g, '')
+        .replace(/\./g, '')
+        .replace(',', '.');
+
+    const value = parseFloat(cleaned);
+    return Number.isFinite(value) ? value : 0;
+}
 
 function initializeEventListeners() {
     // Same as shipping checkbox
@@ -662,7 +693,7 @@ function loadCartSummary() {
                         <div class="text-sm text-gray-500">Quantità: ${item.quantity}</div>
                     </div>
                 </div>
-                <div class="font-medium text-black">€${itemTotal.toFixed(2)}</div>
+                <div class="font-medium text-black">${formatMoney(itemTotal)}</div>
             </div>
         `;
         summaryContainer.innerHTML += html;
@@ -720,7 +751,7 @@ async function applyDiscount() {
                 amount: data.discount_amount,
                 type: data.discount_type
             };
-            feedback.innerHTML = `<span class="text-green-600">✓ Codice sconto applicato: -€${data.discount_amount.toFixed(2)}</span>`;
+            feedback.innerHTML = `<span class="text-green-600">✓ Codice sconto applicato: -${formatMoney(data.discount_amount)}</span>`;
             updateTotals(currentTotal);
         } else {
             feedback.innerHTML = `<span class="text-red-600">${data.message || 'Codice non valido'}</span>`;
@@ -756,25 +787,33 @@ function calculateDiscount(subtotal, shipping) {
 function updateTotals(subtotal) {
     const shipping = calculateShipping(getSelectedShipping());
     const discount = calculateDiscount(subtotal, shipping);
-    const total = Math.max(0, subtotal + shipping - discount);
+    const tax = Number.isFinite(serverTaxEstimate) ? serverTaxEstimate : 0;
+    const total = Math.max(0, subtotal + shipping + tax - discount);
 
     // Update display
-    document.getElementById('subtotal').textContent = '€' + subtotal.toFixed(2).replace('.', ',');
-    document.getElementById('shipping').textContent = '€' + shipping.toFixed(2).replace('.', ',');
+    document.getElementById('subtotal').textContent = formatMoney(subtotal);
+    document.getElementById('shipping').textContent = formatMoney(shipping);
+
+    if (tax > 0) {
+        document.getElementById('taxContainer').style.display = 'flex';
+        document.getElementById('tax').textContent = formatMoney(tax);
+    } else {
+        document.getElementById('taxContainer').style.display = 'none';
+    }
     
     if (discount > 0) {
         document.getElementById('discountContainer').style.display = 'flex';
-        document.getElementById('discount').textContent = '-€' + discount.toFixed(2).replace('.', ',');
+        document.getElementById('discount').textContent = '-' + formatMoney(discount);
     } else {
         document.getElementById('discountContainer').style.display = 'none';
     }
     
-    document.getElementById('total').textContent = '€' + total.toFixed(2).replace('.', ',');
+    document.getElementById('total').textContent = formatMoney(total);
     
     // Update stripe modal amount
     const stripeAmount = document.getElementById('stripeAmount');
     if (stripeAmount) {
-        stripeAmount.textContent = '€' + total.toFixed(2).replace('.', ',');
+        stripeAmount.textContent = formatMoney(total);
     }
     
     // Update button preview
@@ -782,10 +821,10 @@ function updateTotals(subtotal) {
 }
 
 function updateTotalPreview() {
-    const total = parseFloat(document.getElementById('total').textContent.replace('€', '').replace(',', '.'));
+    const total = parseMoney(document.getElementById('total').textContent);
     const preview = document.getElementById('totalAmountPreview');
     if (preview) {
-        preview.textContent = '€' + total.toFixed(2).replace('.', ',');
+        preview.textContent = formatMoney(total);
     }
 }
 
@@ -899,6 +938,8 @@ async function proceedToPayment() {
         if (!saveData.success) {
             throw new Error(saveData.message || 'Errore nel salvataggio dell\'ordine');
         }
+
+        applyServerTotals(saveData);
         
         // Get payment method
         const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
@@ -974,6 +1015,47 @@ async function saveCheckoutData() {
     } catch (error) {
         throw new Error('Errore di connessione al server');
     }
+}
+
+function applyServerTotals(data) {
+    if (typeof data.currency === 'string' && data.currency.length === 3) {
+        checkoutCurrency = data.currency.toUpperCase();
+    }
+
+    const subtotal = Number.isFinite(parseFloat(data.subtotal)) ? parseFloat(data.subtotal) : currentTotal;
+    const shipping = Number.isFinite(parseFloat(data.shipping_cost)) ? parseFloat(data.shipping_cost) : calculateShipping(getSelectedShipping());
+    const discount = Number.isFinite(parseFloat(data.discount_amount)) ? parseFloat(data.discount_amount) : calculateDiscount(subtotal, shipping);
+    const tax = Number.isFinite(parseFloat(data.tax_total)) ? parseFloat(data.tax_total) : 0;
+    const total = Number.isFinite(parseFloat(data.total)) ? parseFloat(data.total) : Math.max(0, subtotal + shipping + tax - discount);
+
+    currentTotal = subtotal;
+    serverTaxEstimate = tax;
+
+    document.getElementById('subtotal').textContent = formatMoney(subtotal);
+    document.getElementById('shipping').textContent = formatMoney(shipping);
+
+    if (tax > 0) {
+        document.getElementById('taxContainer').style.display = 'flex';
+        document.getElementById('tax').textContent = formatMoney(tax);
+    } else {
+        document.getElementById('taxContainer').style.display = 'none';
+    }
+
+    if (discount > 0) {
+        document.getElementById('discountContainer').style.display = 'flex';
+        document.getElementById('discount').textContent = '-' + formatMoney(discount);
+    } else {
+        document.getElementById('discountContainer').style.display = 'none';
+    }
+
+    document.getElementById('total').textContent = formatMoney(total);
+
+    const stripeAmount = document.getElementById('stripeAmount');
+    if (stripeAmount) {
+        stripeAmount.textContent = formatMoney(total);
+    }
+
+    updateTotalPreview();
 }
 
 function showStripeModal() {
@@ -1084,7 +1166,7 @@ function initializePayPal() {
     const container = document.getElementById('paypal-button-container');
     container.innerHTML = '';
     
-    const total = parseFloat(document.getElementById('total').textContent.replace('€', '').replace(',', '.'));
+    const total = parseMoney(document.getElementById('total').textContent);
     
     paypal.Buttons({
         style: {

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Models\Category;
+use App\Support\Tenancy\TenantContext;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Select;
@@ -13,6 +14,8 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Actions\DeleteAction;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Validation\Rules\Unique;
 
 class CategoryResource extends Resource
 {
@@ -27,12 +30,14 @@ class CategoryResource extends Resource
             Section::make('Informazioni Categoria')->schema([
                 TextInput::make('name')
                     ->label('Nome')
-                    ->required()
-                    ->unique(ignoreRecord: true),
+                    ->required(),
                 TextInput::make('slug')
                     ->label('Slug')
                     ->required()
-                    ->unique(ignoreRecord: true),
+                    ->unique(
+                        ignoreRecord: true,
+                        modifyRuleUsing: fn (Unique $rule) => $rule->where('store_id', static::currentStoreId())
+                    ),
                 Textarea::make('description')
                     ->label('Descrizione')
                     ->columnSpanFull(),
@@ -69,6 +74,30 @@ class CategoryResource extends Resource
             EditAction::make(),
             DeleteAction::make(),
         ]);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $storeId = static::currentStoreId();
+
+        if ($storeId === null) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where('store_id', $storeId);
+    }
+
+    protected static function currentStoreId(): ?int
+    {
+        if (!app()->bound(TenantContext::class)) {
+            return null;
+        }
+
+        /** @var TenantContext $context */
+        $context = app(TenantContext::class);
+
+        return $context->storeId();
     }
 
     public static function getPages(): array

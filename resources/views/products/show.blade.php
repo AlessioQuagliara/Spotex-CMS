@@ -107,7 +107,9 @@
             @endif
 
             <div class="flex items-baseline gap-4 mb-6">
-                @if($product->discounted_price)
+                @if(isset($defaultVariant) && $defaultVariant)
+                    <span class="text-3xl font-bold text-slate-900">€{{ number_format($defaultVariant->price, 2, ',', '.') }}</span>
+                @elseif($product->discounted_price)
                     <span class="text-3xl font-bold text-slate-900">€{{ number_format($product->discounted_price, 2, ',', '.') }}</span>
                     <span class="text-xl text-gray-400 line-through">€{{ number_format($product->price, 2, ',', '.') }}</span>
                     <span class="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
@@ -134,15 +136,15 @@
                 </div>
             @endif
 
-            @if($product->stock > 0)
+            @if(($availableStock ?? 0) > 0)
                 <div class="flex items-center gap-4 mb-6">
-                          <input type="number" id="quantity" value="1" min="1" max="{{ $product->stock }}" 
+                          <input type="number" id="quantity" value="1" min="1" max="{{ $availableStock }}" 
                               class="w-24 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 outline-none">
-                          <button data-product-id="{{ $product->id }}" data-qty-input="#quantity" class="js-add-to-cart flex-1 bg-slate-900 text-white px-6 py-3 rounded-lg font-semibold hover:bg-slate-800 transition">
+                          <button data-product-id="{{ $product->id }}" data-variant-id="{{ $defaultVariant?->id }}" data-qty-input="#quantity" class="js-add-to-cart flex-1 bg-slate-900 text-white px-6 py-3 rounded-lg font-semibold hover:bg-slate-800 transition">
                         Aggiungi al Carrello
                     </button>
                 </div>
-                <p class="text-green-600 font-semibold">✓ In stock ({{ $product->stock }} disponibili)</p>
+                <p class="text-green-600 font-semibold">✓ In stock ({{ $availableStock }} disponibili)</p>
             @else
                 <div class="bg-yellow-50 border border-yellow-200 px-4 py-3 rounded-lg mb-6">
                     <p class="text-yellow-800 font-semibold">Prodotto al momento non disponibile</p>
@@ -152,10 +154,10 @@
             <!-- Info aggiuntive -->
             <div class="border-t pt-6 mt-8">
                 <div class="grid grid-cols-2 gap-4">
-                    @if(!empty($product->sku))
+                    @if(!empty($defaultVariant?->sku) || !empty($product->sku))
                         <div>
                             <p class="text-gray-600 text-sm uppercase tracking-wide mb-2">SKU</p>
-                            <p class="font-semibold">{{ $product->sku }}</p>
+                            <p class="font-semibold">{{ $defaultVariant?->sku ?? $product->sku }}</p>
                         </div>
                     @endif
                     <div>

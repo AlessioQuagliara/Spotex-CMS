@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\FooterSettingResource\Pages;
 use App\Models\Setting;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -68,7 +69,14 @@ class FooterSettingResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->where('key', 'business_powered_by');
+        $query = parent::getEloquentQuery()->where('key', 'business_powered_by');
+        $storeId = static::currentStoreId();
+
+        if ($storeId === null) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where('store_id', $storeId);
     }
 
     public static function getPages(): array
@@ -78,5 +86,17 @@ class FooterSettingResource extends Resource
             'create' => Pages\CreateFooterSetting::route('/create'),
             'edit' => Pages\EditFooterSetting::route('/{record}/edit'),
         ];
+    }
+
+    protected static function currentStoreId(): ?int
+    {
+        if (!app()->bound(TenantContext::class)) {
+            return null;
+        }
+
+        /** @var TenantContext $context */
+        $context = app(TenantContext::class);
+
+        return $context->storeId();
     }
 }

@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Coupon;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\Store;
 use Illuminate\Database\Seeder;
 
 class CouponSeeder extends Seeder
@@ -13,7 +13,10 @@ class CouponSeeder extends Seeder
      */
     public function run(): void
     {
+        $storeId = Store::query()->value('id');
+
         Coupon::create([
+            'store_id' => $storeId,
             'code' => 'WELCOME10',
             'type' => 'percentage',
             'value' => 10,
@@ -27,6 +30,7 @@ class CouponSeeder extends Seeder
         ]);
 
         Coupon::create([
+            'store_id' => $storeId,
             'code' => 'SPOTEX5',
             'type' => 'percentage',
             'value' => 5,
@@ -40,6 +44,7 @@ class CouponSeeder extends Seeder
         ]);
 
         Coupon::create([
+            'store_id' => $storeId,
             'code' => 'WELCOME20',
             'type' => 'fixed',
             'value' => 20,

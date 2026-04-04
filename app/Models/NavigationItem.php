@@ -2,13 +2,17 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToStore;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class NavigationItem extends Model
 {
+    use BelongsToStore;
+
     protected $fillable = [
+        'store_id',
         'location',
         'parent_id',
         'label',
@@ -50,6 +54,11 @@ class NavigationItem extends Model
     public function parent(): BelongsTo
     {
         return $this->belongsTo(NavigationItem::class, 'parent_id');
+    }
+
+    public function store(): BelongsTo
+    {
+        return $this->belongsTo(Store::class);
     }
 
     /**

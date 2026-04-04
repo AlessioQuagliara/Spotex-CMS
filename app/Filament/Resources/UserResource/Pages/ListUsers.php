@@ -54,7 +54,8 @@ class ListUsers extends ListRecords
                     $user->email_verified_at = null;
                     $user->save();
 
-                    UserResource::sendInvitation($user, auth()->user());
+                    UserResource::syncMembershipRole($user, $role, auth()->user());
+                    UserResource::sendInvitation($user, auth()->user(), $role);
 
                     Notification::make()
                         ->title('Invito inviato')

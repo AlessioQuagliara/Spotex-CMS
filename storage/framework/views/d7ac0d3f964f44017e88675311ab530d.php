@@ -502,7 +502,7 @@
             }
         };
 
-        const handleAddToCart = async (productId, quantity = 1) => {
+        const handleAddToCart = async (payload, quantity = 1) => {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
             const response = await fetch('<?php echo e(route('cart.add')); ?>', {
                 method: 'POST',
@@ -511,7 +511,7 @@
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    product_id: productId,
+                    ...payload,
                     quantity: quantity,
                 }),
             });
@@ -532,11 +532,13 @@
         document.querySelectorAll('.js-add-to-cart').forEach((button) => {
             button.addEventListener('click', async () => {
                 const productId = button.dataset.productId;
+                const variantId = button.dataset.variantId;
                 const qtyInput = button.dataset.qtyInput ? document.querySelector(button.dataset.qtyInput) : null;
                 const quantity = qtyInput ? parseInt(qtyInput.value || '1', 10) : 1;
+                const payload = variantId ? { variant_id: variantId } : { product_id: productId };
 
                 try {
-                    const data = await handleAddToCart(productId, quantity);
+                    const data = await handleAddToCart(payload, quantity);
                     if (data.success) {
                         button.classList.add('ring-2', 'ring-green-500');
                         setTimeout(() => button.classList.remove('ring-2', 'ring-green-500'), 800);

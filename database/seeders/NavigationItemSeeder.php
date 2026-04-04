@@ -4,12 +4,15 @@ namespace Database\Seeders;
 
 use App\Models\NavigationItem;
 use App\Models\Page;
+use App\Models\Store;
 use Illuminate\Database\Seeder;
 
 class NavigationItemSeeder extends Seeder
 {
     public function run(): void
     {
+        $storeId = Store::query()->value('id');
+
         // Pulisci i dati esistenti
         NavigationItem::truncate();
 
@@ -20,6 +23,7 @@ class NavigationItemSeeder extends Seeder
 
         // Menu Header
         NavigationItem::create([
+            'store_id' => $storeId,
             'location' => 'header',
             'label' => 'Prodotti',
             'type' => 'custom',
@@ -29,6 +33,7 @@ class NavigationItemSeeder extends Seeder
 
         if ($homePage) {
             NavigationItem::create([
+                'store_id' => $storeId,
                 'location' => 'header',
                 'label' => 'Home',
                 'type' => 'page',
@@ -39,6 +44,7 @@ class NavigationItemSeeder extends Seeder
 
         if ($aboutPage) {
             NavigationItem::create([
+                'store_id' => $storeId,
                 'location' => 'header',
                 'label' => 'Chi Siamo',
                 'type' => 'page',
@@ -49,6 +55,7 @@ class NavigationItemSeeder extends Seeder
 
         if ($contactPage) {
             NavigationItem::create([
+                'store_id' => $storeId,
                 'location' => 'header',
                 'label' => 'Contatti',
                 'type' => 'page',
@@ -59,6 +66,7 @@ class NavigationItemSeeder extends Seeder
 
         // Menu Footer - Sezione Informazioni
         $infoParent = NavigationItem::create([
+            'store_id' => $storeId,
             'location' => 'footer',
             'label' => 'Informazioni',
             'type' => 'custom',
@@ -67,6 +75,7 @@ class NavigationItemSeeder extends Seeder
         ]);
 
         NavigationItem::create([
+            'store_id' => $storeId,
             'location' => 'footer',
             'parent_id' => $infoParent->id,
             'label' => 'Chi Siamo',
@@ -76,6 +85,7 @@ class NavigationItemSeeder extends Seeder
         ]);
 
         NavigationItem::create([
+            'store_id' => $storeId,
             'location' => 'footer',
             'parent_id' => $infoParent->id,
             'label' => 'Blog',
@@ -86,6 +96,7 @@ class NavigationItemSeeder extends Seeder
 
         // Menu Footer - Sezione Assistenza
         $supportParent = NavigationItem::create([
+            'store_id' => $storeId,
             'location' => 'footer',
             'label' => 'Assistenza',
             'type' => 'custom',
@@ -94,6 +105,7 @@ class NavigationItemSeeder extends Seeder
         ]);
 
         NavigationItem::create([
+            'store_id' => $storeId,
             'location' => 'footer',
             'parent_id' => $supportParent->id,
             'label' => 'Contatti',
@@ -103,6 +115,7 @@ class NavigationItemSeeder extends Seeder
         ]);
 
         NavigationItem::create([
+            'store_id' => $storeId,
             'location' => 'footer',
             'parent_id' => $supportParent->id,
             'label' => 'FAQ',
@@ -112,6 +125,7 @@ class NavigationItemSeeder extends Seeder
         ]);
 
         NavigationItem::create([
+            'store_id' => $storeId,
             'location' => 'footer',
             'parent_id' => $supportParent->id,
             'label' => 'Resi',
@@ -122,6 +136,7 @@ class NavigationItemSeeder extends Seeder
 
         // Menu Footer - Sezione Legale
         $legalParent = NavigationItem::create([
+            'store_id' => $storeId,
             'location' => 'footer',
             'label' => 'Legale',
             'type' => 'custom',
@@ -130,6 +145,7 @@ class NavigationItemSeeder extends Seeder
         ]);
 
         NavigationItem::create([
+            'store_id' => $storeId,
             'location' => 'footer',
             'parent_id' => $legalParent->id,
             'label' => 'Privacy Policy',
@@ -139,6 +155,7 @@ class NavigationItemSeeder extends Seeder
         ]);
 
         NavigationItem::create([
+            'store_id' => $storeId,
             'location' => 'footer',
             'parent_id' => $legalParent->id,
             'label' => 'Termini di Servizio',
@@ -148,6 +165,7 @@ class NavigationItemSeeder extends Seeder
         ]);
 
         NavigationItem::create([
+            'store_id' => $storeId,
             'location' => 'footer',
             'parent_id' => $legalParent->id,
             'label' => 'Cookie Policy',

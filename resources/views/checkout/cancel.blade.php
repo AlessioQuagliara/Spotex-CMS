@@ -22,7 +22,7 @@
             </p>
 
             <div class="space-y-3">
-                <a href="{{ route('checkout.index', ['order' => $order->id]) }}" 
+                <a href="{{ route('checkout.index') }}" 
                    class="inline-block w-full bg-[#010f20] text-white font-bold py-3 rounded hover:bg-blue-900 transition">
                     Riprova il Pagamento
                 </a>

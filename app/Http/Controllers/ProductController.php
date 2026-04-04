@@ -5,18 +5,25 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use App\Models\Category;
 use App\Models\Page;
+use App\Models\ProductVariant;
 use App\Models\Review;
 use App\Services\Builder\BuilderDocumentRenderer;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\Builder;
 
 class ProductController extends Controller
 {
+    public function __construct(private readonly TenantContext $tenantContext)
+    {
+    }
+
     public function index(Request $request, ?BuilderDocumentRenderer $renderer = null)
     {
         $renderer ??= app(BuilderDocumentRenderer::class);
 
         if (!$request->has('category')) {
-            $productsPage = Page::query()
+            $productsPage = $this->applyStoreScope(Page::query())
                 ->where('slug', 'prodotti')
                 ->where('is_published', true)
                 ->first();
@@ -35,18 +42,22 @@ class ProductController extends Controller
             }
         }
 
-        $query = Product::where('is_active', true);
+        $query = $this->applyStoreScope(Product::query())->where('is_active', true);
         $selectedCategory = null;
 
         if ($request->has('category')) {
-            $selectedCategory = Category::where('slug', $request->get('category'))->first();
+            $selectedCategory = $this->applyStoreScope(Category::query())
+                ->where('slug', $request->get('category'))
+                ->first();
             if ($selectedCategory) {
                 $query->where('category_id', $selectedCategory->id);
             }
         }
 
         $products = $query->with('primaryImage')->paginate(12);
-        $categories = Category::where('parent_id', null)->get();
+        $categories = $this->applyStoreScope(Category::query())
+            ->where('parent_id', null)
+            ->get();
 
         return view('products.index', [
             'products' => $products,
@@ -60,13 +71,18 @@ class ProductController extends Controller
         $product->load([
             'images',
             'category',
+            'variants' => fn ($query) => $query
+                ->where('status', ProductVariant::STATUS_ACTIVE)
+                ->with(['inventoryLevels.location' => fn ($locationQuery) => $locationQuery->where('is_active', true)])
+                ->orderBy('id'),
             'reviews' => fn ($query) => $query->where('is_approved', true)->latest(),
         ]);
 
         $alsoChosen = collect();
 
         if ($product->category) {
-            $alsoChosen = Product::where('is_active', true)
+            $alsoChosen = $this->applyStoreScope(Product::query())
+                ->where('is_active', true)
                 ->where('category_id', $product->category->id)
                 ->where('id', '!=', $product->id)
                 ->with('primaryImage')
@@ -76,12 +92,18 @@ class ProductController extends Controller
 
         $reviewsCount = $product->reviews->count();
         $averageRating = $reviewsCount > 0 ? round($product->reviews->avg('rating'), 1) : null;
+        $defaultVariant = $product->variants->first();
+        $availableStock = $defaultVariant
+            ? (int) $defaultVariant->inventoryLevels->sum('available')
+            : max(0, (int) $product->stock);
 
         return view('products.show', [
             'product' => $product,
             'alsoChosen' => $alsoChosen,
             'reviewsCount' => $reviewsCount,
             'averageRating' => $averageRating,
+            'defaultVariant' => $defaultVariant,
+            'availableStock' => $availableStock,
         ]);
     }
 
@@ -106,16 +128,34 @@ class ProductController extends Controller
 
     public function category(Category $category)
     {
-        $products = Product::where('is_active', true)
+        $products = $this->applyStoreScope(Product::query())
+            ->where('is_active', true)
             ->where('category_id', $category->id)
             ->with('primaryImage')
             ->paginate(12);
-        $categories = Category::whereNull('parent_id')->get();
+        $categories = $this->applyStoreScope(Category::query())
+            ->whereNull('parent_id')
+            ->get();
 
         return view('products.index', [
             'products' => $products,
             'categories' => $categories,
             'selectedCategory' => $category,
         ]);
+    }
+
+    private function applyStoreScope(Builder $query): Builder
+    {
+        $storeId = $this->tenantContext->storeId();
+
+        if ($storeId === null) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $builder) use ($storeId): void {
+            $builder
+                ->where('store_id', $storeId)
+                ->orWhereNull('store_id');
+        });
     }
 }

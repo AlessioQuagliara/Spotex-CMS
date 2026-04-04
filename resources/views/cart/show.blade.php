@@ -9,7 +9,7 @@
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <!-- Articoli Carrello -->
                 <div class="lg:col-span-2 space-y-4">
-                    @foreach($cart as $productId => $item)
+                    @foreach($cart as $cartKey => $item)
                         <div class="bg-white rounded-lg shadow p-4 flex gap-4">
                             @if($item['image'])
                                 <img src="{{ asset('storage/' . $item['image']) }}" alt="{{ $item['name'] }}"
@@ -26,11 +26,11 @@
 
                                 <div class="mt-4 flex items-center gap-2">
                                     <input type="number" value="{{ $item['quantity'] }}" 
-                                       data-product-id="{{ $productId }}"
+                                       data-cart-key="{{ $cartKey }}"
                                        class="js-qty-input w-12 text-center border border-gray-300 rounded">
-                                    <button data-product-id="{{ $productId }}" data-delta="1"
+                                    <button data-cart-key="{{ $cartKey }}" data-delta="1"
                                         class="js-qty-change bg-gray-300 px-3 py-1 rounded hover:bg-gray-400">Pulisci</button>
-                                    <button data-product-id="{{ $productId }}"
+                                    <button data-cart-key="{{ $cartKey }}"
                                         class="js-remove-item ml-auto text-red-600 hover:text-red-800 font-semibold">Rimuovi</button>
                                 </div>
                             </div>
@@ -97,27 +97,27 @@
 <script>
 document.querySelectorAll('.js-qty-change').forEach(button => {
     button.addEventListener('click', () => {
-        const productId = button.dataset.productId;
+        const cartKey = button.dataset.cartKey;
         const delta = parseInt(button.dataset.delta, 10);
-        updateQuantity(productId, delta);
+        updateQuantity(cartKey, delta);
     });
 });
 
 document.querySelectorAll('.js-qty-input').forEach(input => {
     input.addEventListener('change', () => {
-        const productId = input.dataset.productId;
-        updateQuantity(productId, 0, input.value);
+        const cartKey = input.dataset.cartKey;
+        updateQuantity(cartKey, 0, input.value);
     });
 });
 
 document.querySelectorAll('.js-remove-item').forEach(button => {
     button.addEventListener('click', () => {
-        const productId = button.dataset.productId;
-        removeItem(productId);
+        const cartKey = button.dataset.cartKey;
+        removeItem(cartKey);
     });
 });
 
-function updateQuantity(productId, change, newValue = null) {
+function updateQuantity(cartKey, change, newValue = null) {
     const quantity = newValue ? parseInt(newValue) : change;
     
     fetch('{{ route("cart.update") }}', {
@@ -127,7 +127,7 @@ function updateQuantity(productId, change, newValue = null) {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            product_id: productId,
+            cart_key: cartKey,
             quantity: newValue ? parseInt(newValue) : quantity,
         }),
     })
@@ -140,7 +140,7 @@ function updateQuantity(productId, change, newValue = null) {
     .catch(error => console.error('Error:', error));
 }
 
-function removeItem(productId) {
+function removeItem(cartKey) {
     if (confirm('Sei sicuro di voler rimuovere questo articolo?')) {
         fetch('{{ route("cart.remove") }}', {
             method: 'POST',
@@ -148,7 +148,7 @@ function removeItem(productId) {
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ product_id: productId }),
+            body: JSON.stringify({ cart_key: cartKey }),
         })
         .then(response => response.json())
         .then(data => {
